@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>CORE EMS — P2P</title>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Syne:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#030712;--surface:#0f172a;--card:#1e293b;
+  --border:#1e293b;--border2:#334155;--muted:#475569;--text:#f1f5f9;
+  --blue:#3b82f6;--blue-d:#1d4ed8;--red:#ef4444;--green:#22c55e;--amber:#f59e0b;
+}
+*,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html{height:100%;height:-webkit-fill-available;background:var(--bg);-webkit-text-size-adjust:100%;}
+body{
+  height:100%;height:-webkit-fill-available;margin:0;padding:0;
+  font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);
+  overflow:hidden;position:fixed;width:100%;
+  display:flex;flex-direction:column;align-items:center;
+}
+#app{width:100%;max-width:430px;height:100%;display:flex;flex-direction:column;background:var(--surface);overflow:hidden;}
+
+/* CONNECTION SCREEN */
+#conn-screen{
+flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+padding:24px;padding-top:calc(40px + var(–safe-top));gap:14px;overflow-y:auto;
+-webkit-overflow-scrolling:touch;
+}
+.logo-big{font-size:28px;font-weight:900;letter-spacing:-0.05em;color:var(–blue);margin-bottom:4px;text-align:center;}
+.logo-big span{color:var(–text);}
+.tagline{font-size:10px;color:var(–muted);font-weight:700;letter-spacing:.15em;text-transform:uppercase;text-align:center;margin-bottom:8px;}
+.conn-card{background:var(–card);border:1px solid var(–border2);border-radius:20px;padding:18px;width:100%;}
+.conn-card h3{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:var(–muted);margin:0 0 12px;}
+.room-code-disp{
+font-family:‘JetBrains Mono’,monospace;font-size:32px;font-weight:800;
+letter-spacing:.18em;color:var(–blue);text-align:center;padding:14px;
+background:rgba(59,130,246,.08);border-radius:12px;border:1px solid rgba(59,130,246,.2);
+margin-bottom:10px;cursor:pointer;user-select:all;-webkit-user-select:all;
+}
+.copy-hint{font-size:9px;color:var(–muted);text-align:center;font-family:‘JetBrains Mono’,monospace;}
+input.room-input{
+width:100%;background:#020617;border:1px solid var(–border2);border-radius:12px;
+padding:14px;font-family:‘JetBrains Mono’,monospace;font-size:22px;font-weight:800;
+color:var(–text);text-align:center;letter-spacing:.2em;outline:none;
+-webkit-appearance:none;text-transform:uppercase;transition:border-color .2s;margin-bottom:10px;
+}
+input.room-input:focus{border-color:var(–blue);}
+.divider{
+display:flex;align-items:center;gap:10px;color:var(–muted);
+font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;margin:4px 0;
+}
+.divider::before,.divider::after{content:’’;flex:1;height:1px;background:var(–border2);}
+.status-row{
+display:flex;align-items:center;gap:8px;padding:10px 14px;
+background:rgba(0,0,0,.3);border-radius:10px;font-size:10px;
+font-family:‘JetBrains Mono’,monospace;color:var(–muted);width:100%;
+}
+.sdot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.sdot.waiting{background:var(–muted);animation:blink 1.5s infinite;}
+.sdot.connecting{background:var(–amber);animation:blink .7s infinite;}
+.sdot.connected{background:var(–green);box-shadow:0 0 6px var(–green);}
+.sdot.error{background:var(–red);}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
+
+/* BUTTONS */
+.btn{
+width:100%;border:none;border-radius:12px;padding:13px;
+font-family:‘Syne’,sans-serif;font-size:10px;font-weight:800;
+text-transform:uppercase;letter-spacing:.12em;cursor:pointer;
+-webkit-appearance:none;transition:transform .1s,filter .15s;
+}
+.btn:active{transform:scale(.96);}
+.btn-blue{background:#2563eb;color:white;}
+.btn-blue:active{filter:brightness(.85);}
+.btn-green{background:#14532d;color:#86efac;border:1px solid #166534;}
+.btn-red{background:#7f1d1d;color:#fca5a5;border:1px solid #991b1b;}
+.btn-ghost{background:var(–card);color:var(–muted);border:1px solid var(–border2);}
+
+/* MAIN UI */
+#main-ui{display:none;flex:1;flex-direction:column;overflow:hidden;}
+
+header{
+padding-top:calc(12px + var(–safe-top));padding-bottom:9px;
+padding-left:14px;padding-right:14px;
+background:var(–surface);border-bottom:1px solid var(–border);
+flex-shrink:0;display:flex;justify-content:space-between;align-items:center;
+}
+.logo{font-size:16px;font-weight:900;letter-spacing:-.04em;color:var(–blue);}
+.logo span{color:var(–text);}
+.hdr-right{display:flex;align-items:center;gap:8px;}
+.room-badge{
+background:var(–card);border:1px solid var(–border2);border-radius:8px;
+padding:4px 9px;font-family:‘JetBrains Mono’,monospace;font-size:9px;
+font-weight:800;color:var(–muted);display:flex;align-items:center;gap:5px;
+}
+.room-badge .gdot{width:5px;height:5px;border-radius:50%;background:var(–green);box-shadow:0 0 4px var(–green);}
+.role-btn{
+background:var(–card);border:1px solid var(–border2);border-radius:8px;
+padding:5px 10px;font-family:‘Syne’,sans-serif;font-size:8px;font-weight:800;
+text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;cursor:pointer;
+-webkit-appearance:none;transition:all .2s;
+}
+.role-btn.patient-mode{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:#fca5a5;}
+
+/* Vitals bar */
+#vitals-bar{display:grid;grid-template-columns:repeat(4,1fr);background:rgba(2,6,23,.8);border-bottom:1px solid var(–border);flex-shrink:0;}
+.vc{padding:7px 2px;text-align:center;border-right:1px solid rgba(30,41,59,.5);transition:background .3s;}
+.vc:last-child{border-right:none;}
+.vl{font-family:‘JetBrains Mono’,monospace;font-size:7px;color:var(–muted);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;}
+.vv{font-family:‘JetBrains Mono’,monospace;font-size:12px;font-weight:800;letter-spacing:-.02em;color:#94a3b8;transition:color .3s;}
+.vc.flash{animation:vFlash .5s ease-out;}
+@keyframes vFlash{0%{background:rgba(59,130,246,.25);}100%{background:transparent;}}
+.vc.crit .vv{color:var(–red);}
+.vc.warn .vv{color:var(–amber);}
+.vc.ok .vv{color:var(–green);}
+
+/* ECG */
+.ecg{height:2px;background:linear-gradient(90deg,transparent,var(–border) 20%,var(–border) 80%,transparent);position:relative;overflow:hidden;flex-shrink:0;}
+.ecg::after{
+content:’’;position:absolute;top:-6px;left:-80px;width:80px;height:14px;
+background:url(“data:image/svg+xml,%3Csvg xmlns=‘http://www.w3.org/2000/svg’ viewBox=‘0 0 80 14’%3E%3Cpath d=‘M0 7 L15 7 L20 2 L25 12 L28 0 L33 14 L37 7 L80 7’ fill=‘none’ stroke=’%232563eb’ stroke-width=‘1.5’/%3E%3C/svg%3E”) no-repeat;
+animation:ecgScroll 2.5s linear infinite;
+}
+@keyframes ecgScroll{to{left:calc(100% + 80px);}}
+
+/* Tabs */
+#tab-bar{display:flex;background:var(–surface);border-bottom:1px solid var(–border);flex-shrink:0;}
+.tab{
+flex:1;padding:9px 2px;font-size:8px;font-weight:800;text-transform:uppercase;
+letter-spacing:.1em;color:var(–muted);background:none;border:none;
+border-bottom:2px solid transparent;cursor:pointer;-webkit-appearance:none;transition:all .2s;
+}
+.tab.active{color:var(–blue);border-bottom-color:var(–blue);}
+
+/* Panels */
+#panels{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0;}
+.panel{display:none;flex:1;flex-direction:column;min-height:0;overflow:hidden;}
+.panel.active{display:flex;}
+
+/* Chat */
+#chat-scroll{
+flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+padding:14px;display:flex;flex-direction:column;gap:9px;
+}
+#chat-scroll::-webkit-scrollbar{display:none;}
+.mw{display:flex;width:100%;}
+.mw.self{justify-content:flex-end;}
+.mw.other{justify-content:flex-start;}
+.mw.sys{justify-content:center;}
+.mb{max-width:83%;padding:9px 13px;border-radius:17px;font-size:13px;line-height:1.4;word-break:break-word;}
+.mw.self .mb{background:#2563eb;border-bottom-right-radius:3px;}
+.mw.other .mb{background:var(–card);border-top-left-radius:3px;}
+.mr{font-size:7px;font-weight:800;opacity:.45;text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px;}
+.mt{font-weight:500;color:var(–text);}
+.sys-msg{
+background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);
+padding:3px 13px;border-radius:99px;font-size:9px;font-weight:800;
+text-transform:uppercase;letter-spacing:.1em;color:#93c5fd;
+}
+
+#chat-foot{
+padding:9px 12px;padding-bottom:calc(9px + var(–safe-bottom));
+background:var(–surface);border-top:1px solid var(–border);
+display:flex;gap:8px;align-items:center;flex-shrink:0;
+}
+#chat-in{
+flex:1;background:#020617;border:1px solid var(–border2);border-radius:22px;
+padding:10px 16px;color:var(–text);font-family:‘Syne’,sans-serif;font-size:14px;
+font-weight:500;outline:none;-webkit-appearance:none;transition:border-color .2s;
+}
+#chat-in:focus{border-color:var(–blue);}
+#chat-in::placeholder{color:var(–border2);}
+#send-btn{
+width:43px;height:43px;background:#2563eb;border:none;border-radius:50%;
+display:flex;align-items:center;justify-content:center;cursor:pointer;
+flex-shrink:0;-webkit-appearance:none;transition:transform .12s,filter .15s;
+}
+#send-btn:active{transform:scale(.86);filter:brightness(.8);}
+
+/* Vitals edit panel */
+#panel-vitals{overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.vedit-wrap{padding:14px;display:flex;flex-direction:column;gap:11px;}
+.vedit-card{background:var(–card);border:1px solid var(–border2);border-radius:14px;padding:13px 14px;}
+.vedit-card label{display:block;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(–muted);margin-bottom:7px;}
+.vedit-card input,.vedit-card select{
+width:100%;background:#020617;border:1px solid var(–border2);border-radius:10px;
+padding:10px 13px;color:var(–text);font-family:‘JetBrains Mono’,monospace;
+font-size:16px;font-weight:700;outline:none;-webkit-appearance:none;transition:border-color .2s;
+}
+.vedit-card input:focus,.vedit-card select:focus{border-color:var(–blue);}
+.vhint{font-size:9px;color:var(–muted);margin-top:5px;font-family:‘JetBrains Mono’,monospace;}
+.patient-only-note{
+font-size:10px;color:var(–amber);text-align:center;padding:12px;
+background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);
+border-radius:12px;font-family:‘JetBrains Mono’,monospace;
+}
+
+/* Typing */
+.typing-wrap{display:flex;}
+.typing-bubble{display:flex;gap:4px;align-items:center;padding:12px 14px;background:var(–card);border-radius:17px;border-top-left-radius:3px;}
+.tdot{width:6px;height:6px;border-radius:50%;background:var(–muted);animation:tdot 1.2s infinite;}
+.tdot:nth-child(2){animation-delay:.2s;}
+.tdot:nth-child(3){animation-delay:.4s;}
+@keyframes tdot{0%,60%,100%{transform:translateY(0);opacity:.4;}30%{transform:translateY(-5px);opacity:1;}}
+
+/* Modals */
+.modal{
+position:fixed;inset:0;background:rgba(0,0,0,.88);
+backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+z-index:100;display:flex;align-items:center;justify-content:center;
+padding:24px;animation:mFadeIn .22s ease-out;
+}
+.modal.hidden{display:none;}
+@keyframes mFadeIn{from{opacity:0;transform:scale(.95);}to{opacity:1;transform:scale(1);}}
+.modal-box{
+background:var(–surface);border:1px solid var(–border2);border-radius:22px;
+padding:26px 22px;width:100%;max-width:320px;text-align:center;
+}
+
+::-webkit-scrollbar{display:none;}
+</style>
+
+</head>
+<body>
+<div id="app">
+
+<!-- ════════════ CONNECTION SCREEN ════════════ -->
+
+<div id="conn-screen">
+  <div>
+    <div class="logo-big">CORE <span>EMS</span></div>
+    <div class="tagline">P2P Simulator</div>
+  </div>
+
+  <!-- HOST: create room -->
+
+  <div class="conn-card" id="card-host">
+    <h3>🏥 患者役 — ルームを作成</h3>
+    <div class="room-code-disp" id="my-room-code">------</div>
+    <div class="copy-hint">タップでコピー</div>
+  </div>
+
+  <div class="divider">または</div>
+
+  <!-- JOIN: enter room code -->
+
+  <div class="conn-card">
+    <h3>🚑 救急隊員役 — ルームに参加</h3>
+    <input class="room-input" id="join-input" placeholder="XXXXXX" maxlength="6" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="characters">
+    <button class="btn btn-blue" onclick="joinRoom()">参加する</button>
+  </div>
+
+  <!-- Status -->
+
+  <div class="status-row" id="status-row">
+    <div class="sdot waiting" id="status-dot"></div>
+    <span id="status-text">接続待機中...</span>
+  </div>
+</div>
+
+<!-- ════════════ MAIN UI ════════════ -->
+
+<div id="main-ui">
+  <header>
+    <div class="logo">CORE <span>EMS</span></div>
+    <div class="hdr-right">
+      <div class="room-badge">
+        <div class="gdot"></div>
+        <span id="hdr-room-code">------</span>
+      </div>
+      <button class="role-btn" id="role-btn" onclick="toggleRole()">PARAMEDIC</button>
+    </div>
+  </header>
+
+  <div id="vitals-bar">
+    <div class="vc" id="vc-bp"><div class="vl">BP</div><div class="vv" id="vv-bp">--/--</div></div>
+    <div class="vc" id="vc-hr"><div class="vl">HR</div><div class="vv" id="vv-hr">--</div></div>
+    <div class="vc" id="vc-jcs"><div class="vl">JCS</div><div class="vv" id="vv-jcs">--</div></div>
+    <div class="vc" id="vc-spo2"><div class="vl">SpO2</div><div class="vv" id="vv-spo2">--%</div></div>
+  </div>
+  <div class="ecg"></div>
+
+  <div id="tab-bar">
+    <button class="tab active" onclick="switchTab('chat',this)">📟 通信</button>
+    <button class="tab" onclick="switchTab('vitals',this)">📊 バイタル</button>
+    <button class="tab" onclick="switchTab('info',this)">📋 情報</button>
+  </div>
+
+  <div id="panels">
+    <!-- Chat -->
+    <div class="panel active" id="panel-chat">
+      <div id="chat-scroll"></div>
+      <div id="chat-foot">
+        <input type="text" id="chat-in" placeholder="メッセージを入力..." autocomplete="off" autocorrect="off" autocapitalize="off">
+        <button id="send-btn" onclick="sendChat()">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+
+```
+<!-- Vitals -->
+<div class="panel" id="panel-vitals">
+  <div class="vedit-wrap">
+    <div id="patient-only-note" class="patient-only-note hidden">⚠️ 患者役のみバイタルを更新できます</div>
+    <div class="vedit-card">
+      <label>血圧 (BP)</label>
+      <input type="text" id="edit-bp" placeholder="120/80" inputmode="text">
+      <div class="vhint">正常: 90-139/60-89 mmHg</div>
+    </div>
+    <div class="vedit-card">
+      <label>心拍数 (HR)</label>
+      <input type="number" id="edit-hr" placeholder="80" inputmode="numeric" min="0" max="300">
+      <div class="vhint">正常: 60-100 bpm</div>
+    </div>
+    <div class="vedit-card">
+      <label>意識レベル (JCS)</label>
+      <select id="edit-jcs">
+        <option value="0">JCS 0 — 清明</option>
+        <option value="1">JCS 1 — 刺激なしで覚醒</option>
+        <option value="2">JCS 2 — 刺激で覚醒</option>
+        <option value="3">JCS 3 — 刺激しても覚醒しない</option>
+        <option value="10">JCS 10 — 普通の呼びかけで応じる</option>
+        <option value="20">JCS 20 — 大きな声で応じる</option>
+        <option value="30">JCS 30 — 痛みで辛うじて応じる</option>
+        <option value="100">JCS 100 — 払いのける動作</option>
+        <option value="200">JCS 200 — 少し手足動かす</option>
+        <option value="300">JCS 300 — 全く動かない</option>
+      </select>
+    </div>
+    <div class="vedit-card">
+      <label>酸素飽和度 (SpO2)</label>
+      <input type="number" id="edit-spo2" placeholder="98" inputmode="numeric" min="50" max="100">
+      <div class="vhint">正常: 96-100%</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button class="btn btn-blue" id="update-btn" onclick="updateVitals()">バイタル更新</button>
+      <button class="btn btn-green" id="arrival-btn" onclick="triggerArrival()">病院到着</button>
+    </div>
+    <button class="btn btn-red" onclick="openReset()">リセット</button>
+  </div>
+</div>
+
+<!-- Info -->
+<div class="panel" id="panel-info">
+  <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;display:flex;flex-direction:column;gap:12px;">
+    <div class="vedit-card">
+      <label>🔗 P2P接続の使い方</label>
+      <div style="font-size:11px;color:#94a3b8;line-height:1.7;">
+        <strong style="color:var(--text);">1. 患者役</strong>がアプリを開くと6桁のルームコードが表示されます。<br>
+        <strong style="color:var(--text);">2. 救急隊員役</strong>はそのコードを入力して「参加する」をタップ。<br>
+        <strong style="color:var(--text);">3. 接続後</strong>はチャット・バイタルがリアルタイム同期します。
+      </div>
+    </div>
+    <div class="vedit-card">
+      <label>🎭 ロール</label>
+      <div style="font-size:11px;color:#94a3b8;line-height:1.7;">
+        <strong style="color:var(--text);">PARAMEDIC:</strong> チャットで患者に問診・指示<br>
+        <strong style="color:var(--text);">PATIENT:</strong> バイタルタブでバイタルを更新・相手に送信
+      </div>
+    </div>
+    <div class="vedit-card">
+      <label>📊 バイタル基準値</label>
+      <div style="font-size:11px;color:#94a3b8;font-family:'JetBrains Mono',monospace;line-height:1.9;">
+        BP: 正常 90-139/60-89 mmHg<br>
+        HR: 正常 60-100 bpm<br>
+        JCS: 0=清明、数値↑=意識障害<br>
+        SpO2: 正常 96-100%（90%↓=危険）
+      </div>
+    </div>
+    <div style="padding:12px;background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.18);border-radius:12px;">
+      <div style="font-size:9px;color:#93c5fd;font-weight:800;margin-bottom:3px;">CORE EMS Simulator — P2P版</div>
+      <div style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;">教育・訓練目的専用<br>実際の医療判断に使用しないこと</div>
+    </div>
+  </div>
+</div>
+```
+
+  </div>
+</div>
+
+<!-- Arrival Modal -->
+
+<div class="modal hidden" id="arrival-modal">
+  <div class="modal-box">
+    <div style="font-size:48px;margin-bottom:10px;">🏥</div>
+    <div style="font-size:17px;font-weight:900;letter-spacing:-.03em;margin-bottom:6px;">病院に到着しました</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:22px;font-family:'JetBrains Mono',monospace;">患者を医療スタッフに引き継ぎました</div>
+    <button class="btn btn-blue" onclick="closeArrival()">閉じる</button>
+  </div>
+</div>
+
+<!-- Reset Modal -->
+
+<div class="modal hidden" id="reset-modal">
+  <div class="modal-box">
+    <div style="font-size:12px;font-weight:900;color:var(--red);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;">リセット確認</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:20px;">全データと会話を初期化します</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button class="btn btn-ghost" onclick="closeReset()">キャンセル</button>
+      <button class="btn btn-red" onclick="doReset()">リセット</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── State ───
+let peer = null;
+let conn = null;
+let myRole = 'paramedic';
+let isHost = false;
+let myRoomCode = '';
+let vitals = { bp:'--/--', hr:'--', jcs:'--', spo2:'--%' };
+
+// ─── Generate 6-char room code ───
+function genCode() {
+  return Math.random().toString(36).substring(2,8).toUpperCase();
+}
+
+// ─── Init as HOST (patient side creates the room) ───
+function initHost() {
+  myRoomCode = genCode();
+  document.getElementById('my-room-code').textContent = myRoomCode;
+  document.getElementById('my-room-code').onclick = () => {
+    navigator.clipboard?.writeText(myRoomCode).catch(()=>{});
+    document.getElementById('my-room-code').textContent = 'COPIED!';
+    setTimeout(()=> document.getElementById('my-room-code').textContent = myRoomCode, 1200);
+  };
+
+  setStatus('connecting', 'PeerJSサーバーに接続中...');
+  peer = new Peer('ems-' + myRoomCode, { debug: 0 });
+
+  peer.on('open', () => {
+    isHost = true;
+    setStatus('waiting', 'ルームコード: ' + myRoomCode + ' — 相手の接続を待機中');
+  });
+
+  peer.on('connection', (c) => {
+    conn = c;
+    setupConn();
+    setStatus('connected', '接続完了！ ルーム: ' + myRoomCode);
+    setTimeout(() => showMainUI(), 800);
+  });
+
+  peer.on('error', (e) => {
+    if (e.type === 'unavailable-id') {
+      // Code taken, try again
+      peer.destroy();
+      initHost();
+    } else {
+      setStatus('error', 'エラー: ' + e.type);
+    }
+  });
+}
+
+// ─── Join as GUEST (paramedic side) ───
+function joinRoom() {
+  const raw = document.getElementById('join-input').value.trim().toUpperCase();
+  if (raw.length < 4) { setStatus('error', '6桁のコードを入力してください'); return; }
+  const code = raw.length === 6 ? raw : raw;
+
+  setStatus('connecting', '接続中... (' + code + ')');
+  peer = new Peer(undefined, { debug: 0 });
+
+  peer.on('open', () => {
+    conn = peer.connect('ems-' + code, { reliable: true });
+    setupConn();
+    conn.on('open', () => {
+      myRoomCode = code;
+      isHost = false;
+      setStatus('connected', '接続完了！ ルーム: ' + code);
+      setTimeout(() => showMainUI(), 600);
+    });
+  });
+
+  peer.on('error', (e) => {
+    setStatus('error', '接続失敗: ' + e.type + ' — コードを確認してください');
+  });
+}
+
+// ─── Setup data channel ───
+function setupConn() {
+  conn.on('data', (data) => {
+    if (data.type === 'chat') {
+      renderMsg(data.text, data.role, false);
+    } else if (data.type === 'vitals') {
+      applyVitals(data.vitals);
+      addSysMsg('📊 バイタル更新: BP ' + data.vitals.bp + ' HR ' + data.vitals.hr + ' JCS ' + data.vitals.jcs + ' SpO2 ' + data.vitals.spo2);
+    } else if (data.type === 'arrived') {
+      document.getElementById('arrival-modal').classList.remove('hidden');
+    } else if (data.type === 'reset') {
+      doResetLocal();
+      addSysMsg('🔄 相手がリセットしました');
+    } else if (data.type === 'sys') {
+      addSysMsg(data.text);
+    }
+  });
+
+  conn.on('close', () => {
+    addSysMsg('⚠️ 相手との接続が切断されました');
+  });
+}
+
+// ─── Show main UI ───
+function showMainUI() {
+  document.getElementById('conn-screen').style.display = 'none';
+  const mu = document.getElementById('main-ui');
+  mu.style.display = 'flex';
+  mu.style.flexDirection = 'column';
+  document.getElementById('hdr-room-code').textContent = myRoomCode;
+
+  // Host defaults to PATIENT role, Guest defaults to PARAMEDIC
+  if (isHost) {
+    myRole = 'patient';
+    document.getElementById('role-btn').textContent = 'PATIENT';
+    document.getElementById('role-btn').classList.add('patient-mode');
+  }
+
+  addSysMsg('🚑 接続完了 — ルーム ' + myRoomCode);
+  addSysMsg(isHost ? '🔴 あなたは患者役です' : '🔵 あなたは救急隊員役です');
+  updatePatientControls();
+}
+
+// ─── Status helpers ───
+function setStatus(state, text) {
+  const dot = document.getElementById('status-dot');
+  dot.className = 'sdot ' + state;
+  document.getElementById('status-text').textContent = text;
+}
+
+// ─── Tab switching ───
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.panel').forEach(p => { p.style.display='none'; p.classList.remove('active'); });
+  const panel = document.getElementById('panel-' + name);
+  if (panel) { panel.style.display = 'flex'; panel.classList.add('active'); }
+}
+
+// ─── Role toggle ───
+function toggleRole() {
+  myRole = myRole === 'paramedic' ? 'patient' : 'paramedic';
+  const btn = document.getElementById('role-btn');
+  btn.textContent = myRole.toUpperCase();
+  btn.classList.toggle('patient-mode', myRole === 'patient');
+  addSysMsg(myRole === 'patient' ? '🔴 患者モードに切り替え' : '🔵 救急隊員モードに切り替え');
+  updatePatientControls();
+}
+
+function updatePatientControls() {
+  const isPatient = myRole === 'patient';
+  const note = document.getElementById('patient-only-note');
+  const editInputs = document.querySelectorAll('.vedit-card input, .vedit-card select');
+  const updateBtn = document.getElementById('update-btn');
+  const arrivalBtn = document.getElementById('arrival-btn');
+  note.classList.toggle('hidden', isPatient);
+  editInputs.forEach(el => el.disabled = !isPatient);
+  updateBtn.disabled = !isPatient;
+  arrivalBtn.disabled = !isPatient;
+  updateBtn.style.opacity = isPatient ? '1' : '.4';
+  arrivalBtn.style.opacity = isPatient ? '1' : '.4';
+}
+
+// ─── Vitals ───
+function applyVitals(v) {
+  vitals = { ...vitals, ...v };
+  setVital('bp', v.bp);
+  setVital('hr', v.hr);
+  setVital('jcs', v.jcs);
+  setVital('spo2', v.spo2);
+}
+
+function setVital(key, val) {
+  if (!val) return;
+  const el = document.getElementById('vv-' + key);
+  const cell = document.getElementById('vc-' + key);
+  if (!el) return;
+  el.textContent = val;
+  cell.classList.remove('flash','crit','warn','ok');
+  if (key === 'hr') {
+    const n = parseInt(val);
+    if (n < 50 || n > 130) cell.classList.add('crit');
+    else if (n < 60 || n > 100) cell.classList.add('warn');
+    else cell.classList.add('ok');
+  } else if (key === 'spo2') {
+    const n = parseInt(val);
+    if (n < 90) cell.classList.add('crit');
+    else if (n < 95) cell.classList.add('warn');
+    else cell.classList.add('ok');
+  } else if (key === 'jcs') {
+    const n = parseInt(val);
+    if (n >= 100) cell.classList.add('crit');
+    else if (n >= 10) cell.classList.add('warn');
+    else if (n === 0) cell.classList.add('ok');
+  } else if (key === 'bp') {
+    const sys = parseInt(val.split('/')[0]);
+    if (sys < 90 || sys > 160) cell.classList.add('crit');
+    else if (sys < 100 || sys > 139) cell.classList.add('warn');
+    else cell.classList.add('ok');
+  }
+  void cell.offsetWidth;
+  cell.classList.add('flash');
+}
+
+function updateVitals() {
+  if (myRole !== 'patient') return;
+  const v = {
+    bp: document.getElementById('edit-bp').value || '--/--',
+    hr: document.getElementById('edit-hr').value || '--',
+    jcs: document.getElementById('edit-jcs').value,
+    spo2: (document.getElementById('edit-spo2').value || '--') + '%'
+  };
+  applyVitals(v);
+  addSysMsg('📊 バイタル更新送信中...');
+  send({ type: 'vitals', vitals: v });
+}
+
+// ─── Chat ───
+function sendChat() {
+  const inp = document.getElementById('chat-in');
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = '';
+  renderMsg(text, myRole, true);
+  send({ type: 'chat', text, role: myRole });
+}
+
+function renderMsg(text, role, self) {
+  const c = document.getElementById('chat-scroll');
+  const div = document.createElement('div');
+  div.className = 'mw ' + (self ? 'self' : 'other');
+  div.innerHTML = `<div class="mb"><div class="mr">${esc(role)}</div><div class="mt">${esc(text)}</div></div>`;
+  c.appendChild(div);
+  c.scrollTop = c.scrollHeight;
+}
+
+function addSysMsg(text) {
+  const c = document.getElementById('chat-scroll');
+  const div = document.createElement('div');
+  div.className = 'mw sys';
+  div.innerHTML = `<div class="sys-msg">${esc(text)}</div>`;
+  c.appendChild(div);
+  c.scrollTop = c.scrollHeight;
+}
+
+// ─── Arrival ───
+function triggerArrival() {
+  if (myRole !== 'patient') return;
+  document.getElementById('arrival-modal').classList.remove('hidden');
+  send({ type: 'arrived' });
+}
+function closeArrival() {
+  document.getElementById('arrival-modal').classList.add('hidden');
+  addSysMsg('🏥 病院に到着しシミュレーション終了');
+}
+
+// ─── Reset ───
+function openReset() { document.getElementById('reset-modal').classList.remove('hidden'); }
+function closeReset() { document.getElementById('reset-modal').classList.add('hidden'); }
+function doReset() {
+  closeReset();
+  doResetLocal();
+  send({ type: 'reset' });
+  addSysMsg('🔄 リセット完了');
+}
+function doResetLocal() {
+  ['bp','hr','jcs','spo2'].forEach(k => setVital(k, k === 'spo2' ? '--%' : '--'));
+  vitals = { bp:'--/--', hr:'--', jcs:'--', spo2:'--%' };
+  ['edit-bp','edit-hr','edit-spo2'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+  const jcsEl = document.getElementById('edit-jcs');
+  if (jcsEl) jcsEl.selectedIndex = 0;
+  document.getElementById('chat-scroll').innerHTML = '';
+}
+
+// ─── P2P send ───
+function send(data) {
+  try { if (conn && conn.open) conn.send(data); } catch(e) { console.warn('Send failed', e); }
+}
+
+// ─── Escape ───
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── Event listeners ───
+document.getElementById('chat-in').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+});
+document.getElementById('join-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') joinRoom();
+});
+
+// ─── Boot: always start as host first ───
+initHost();
+</script>
+
+</body>
+</html>
