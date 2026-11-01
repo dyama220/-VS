@@ -1,706 +1,518 @@
 <!DOCTYPE html>
-
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>CORE EMS — P2P</title>
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Syne:wght@700;800;900&display=swap" rel="stylesheet">
-<style>
-:root{
-  --safe-top:env(safe-area-inset-top,0px);
-  --safe-bottom:env(safe-area-inset-bottom,0px);
-  --bg:#030712;--surface:#0f172a;--card:#1e293b;
-  --border:#1e293b;--border2:#334155;--muted:#475569;--text:#f1f5f9;
-  --blue:#3b82f6;--blue-d:#1d4ed8;--red:#ef4444;--green:#22c55e;--amber:#f59e0b;
-}
-*,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-html{height:100%;height:-webkit-fill-available;background:var(--bg);-webkit-text-size-adjust:100%;}
-body{
-  height:100%;height:-webkit-fill-available;margin:0;padding:0;
-  font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);
-  overflow:hidden;position:fixed;width:100%;
-  display:flex;flex-direction:column;align-items:center;
-}
-#app{width:100%;max-width:430px;height:100%;display:flex;flex-direction:column;background:var(--surface);overflow:hidden;}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>消防士向け 熱画像判読トレーニング (VRカメラ融合版)</title>
 
-/* CONNECTION SCREEN */
-#conn-screen{
-flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-padding:24px;padding-top:calc(40px + var(–safe-top));gap:14px;overflow-y:auto;
--webkit-overflow-scrolling:touch;
-}
-.logo-big{font-size:28px;font-weight:900;letter-spacing:-0.05em;color:var(–blue);margin-bottom:4px;text-align:center;}
-.logo-big span{color:var(–text);}
-.tagline{font-size:10px;color:var(–muted);font-weight:700;letter-spacing:.15em;text-transform:uppercase;text-align:center;margin-bottom:8px;}
-.conn-card{background:var(–card);border:1px solid var(–border2);border-radius:20px;padding:18px;width:100%;}
-.conn-card h3{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:var(–muted);margin:0 0 12px;}
-.room-code-disp{
-font-family:‘JetBrains Mono’,monospace;font-size:32px;font-weight:800;
-letter-spacing:.18em;color:var(–blue);text-align:center;padding:14px;
-background:rgba(59,130,246,.08);border-radius:12px;border:1px solid rgba(59,130,246,.2);
-margin-bottom:10px;cursor:pointer;user-select:all;-webkit-user-select:all;
-}
-.copy-hint{font-size:9px;color:var(–muted);text-align:center;font-family:‘JetBrains Mono’,monospace;}
-input.room-input{
-width:100%;background:#020617;border:1px solid var(–border2);border-radius:12px;
-padding:14px;font-family:‘JetBrains Mono’,monospace;font-size:22px;font-weight:800;
-color:#ffffff;text-align:center;letter-spacing:.2em;outline:none;
--webkit-appearance:none;text-transform:uppercase;transition:border-color .2s;margin-bottom:10px;
--webkit-text-fill-color:#ffffff;
-}
-input.room-input:focus{border-color:var(–blue);}
-.divider{
-display:flex;align-items:center;gap:10px;color:var(–muted);
-font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;margin:4px 0;
-}
-.divider::before,.divider::after{content:’’;flex:1;height:1px;background:var(–border2);}
-.status-row{
-display:flex;align-items:center;gap:8px;padding:10px 14px;
-background:rgba(0,0,0,.3);border-radius:10px;font-size:10px;
-font-family:‘JetBrains Mono’,monospace;color:var(–muted);width:100%;
-}
-.sdot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
-.sdot.waiting{background:var(–muted);animation:blink 1.5s infinite;}
-.sdot.connecting{background:var(–amber);animation:blink .7s infinite;}
-.sdot.connected{background:var(–green);box-shadow:0 0 6px var(–green);}
-.sdot.error{background:var(–red);}
-@keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
+  <!-- Tailwind CSS -->
+  <script src="<https://cdn.tailwindcss.com>"></script>
 
-/* BUTTONS */
-.btn{
-width:100%;border:none;border-radius:12px;padding:13px;
-font-family:‘Syne’,sans-serif;font-size:10px;font-weight:800;
-text-transform:uppercase;letter-spacing:.12em;cursor:pointer;
--webkit-appearance:none;transition:transform .1s,filter .15s;
-}
-.btn:active{transform:scale(.96);}
-.btn-blue{background:#2563eb;color:white;}
-.btn-blue:active{filter:brightness(.85);}
-.btn-green{background:#14532d;color:#86efac;border:1px solid #166534;}
-.btn-red{background:#7f1d1d;color:#fca5a5;border:1px solid #991b1b;}
-.btn-ghost{background:var(–card);color:var(–muted);border:1px solid var(–border2);}
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="<https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css>">
 
-/* MAIN UI */
-#main-ui{display:none;flex:1;flex-direction:column;overflow:hidden;}
+  <!-- Three.js & WebXR Import Map -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "<https://unpkg.com/three@0.160.0/build/three.module.js>",
+        "three/addons/": "<https://unpkg.com/three@0.160.0/examples/jsm/>"
+      }
+    }
+  </script>
 
-header{
-padding-top:calc(12px + var(–safe-top));padding-bottom:9px;
-padding-left:14px;padding-right:14px;
-background:var(–surface);border-bottom:1px solid var(–border);
-flex-shrink:0;display:flex;justify-content:space-between;align-items:center;
-}
-.logo{font-size:16px;font-weight:900;letter-spacing:-.04em;color:var(–blue);}
-.logo span{color:var(–text);}
-.hdr-right{display:flex;align-items:center;gap:8px;}
-.room-badge{
-background:var(–card);border:1px solid var(–border2);border-radius:8px;
-padding:4px 9px;font-family:‘JetBrains Mono’,monospace;font-size:9px;
-font-weight:800;color:var(–muted);display:flex;align-items:center;gap:5px;
-}
-.room-badge .gdot{width:5px;height:5px;border-radius:50%;background:var(–green);box-shadow:0 0 4px var(–green);}
-.role-btn{
-background:var(–card);border:1px solid var(–border2);border-radius:8px;
-padding:5px 10px;font-family:‘Syne’,sans-serif;font-size:8px;font-weight:800;
-text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;cursor:pointer;
--webkit-appearance:none;transition:all .2s;
-}
-.role-btn.patient-mode{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:#fca5a5;}
+  <style>
+    @keyframes cyanMagentaShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
 
-/* Vitals bar */
-#vitals-bar{display:grid;grid-template-columns:repeat(4,1fr);background:rgba(2,6,23,.8);border-bottom:1px solid var(–border);flex-shrink:0;}
-.vc{padding:7px 2px;text-align:center;border-right:1px solid rgba(30,41,59,.5);transition:background .3s;}
-.vc:last-child{border-right:none;}
-.vl{font-family:‘JetBrains Mono’,monospace;font-size:7px;color:var(–muted);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;}
-.vv{font-family:‘JetBrains Mono’,monospace;font-size:12px;font-weight:800;letter-spacing:-.02em;color:#94a3b8;transition:color .3s;}
-.vc.flash{animation:vFlash .5s ease-out;}
-@keyframes vFlash{0%{background:rgba(59,130,246,.25);}100%{background:transparent;}}
-.vc.crit .vv{color:var(–red);}
-.vc.warn .vv{color:var(–amber);}
-.vc.ok .vv{color:var(–green);}
+    .bg-animated-cyan-magenta {
+      background: linear-gradient(-45deg, #00f2fe, #00c6ff, #9b51e0, #f355da, #e60067);
+      background-size: 400% 400%;
+      animation: cyanMagentaShift 12s ease infinite;
+    }
 
-/* ECG */
-.ecg{height:2px;background:linear-gradient(90deg,transparent,var(–border) 20%,var(–border) 80%,transparent);position:relative;overflow:hidden;flex-shrink:0;}
-.ecg::after{
-content:’’;position:absolute;top:-6px;left:-80px;width:80px;height:14px;
-background:url(“data:image/svg+xml,%3Csvg xmlns=‘http://www.w3.org/2000/svg’ viewBox=‘0 0 80 14’%3E%3Cpath d=‘M0 7 L15 7 L20 2 L25 12 L28 0 L33 14 L37 7 L80 7’ fill=‘none’ stroke=’%232563eb’ stroke-width=‘1.5’/%3E%3C/svg%3E”) no-repeat;
-animation:ecgScroll 2.5s linear infinite;
-}
-@keyframes ecgScroll{to{left:calc(100% + 80px);}}
+    .glass-card {
+      background: rgba(255, 255, 255, 0.18);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
 
-/* Tabs */
-#tab-bar{display:flex;background:var(–surface);border-bottom:1px solid var(–border);flex-shrink:0;}
-.tab{
-flex:1;padding:9px 2px;font-size:8px;font-weight:800;text-transform:uppercase;
-letter-spacing:.1em;color:var(–muted);background:none;border:none;
-border-bottom:2px solid transparent;cursor:pointer;-webkit-appearance:none;transition:all .2s;
-}
-.tab.active{color:var(–blue);border-bottom-color:var(–blue);}
+    .glass-card-dark {
+      background: rgba(18, 18, 24, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
 
-/* Panels */
-#panels{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0;}
-.panel{display:none;flex:1;flex-direction:column;min-height:0;overflow:hidden;}
-.panel.active{display:flex;}
+    button, input, select {
+      touch-action: manipulation;
+    }
 
-/* Chat */
-#chat-scroll{
-flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
-padding:14px;display:flex;flex-direction:column;gap:9px;
-}
-#chat-scroll::-webkit-scrollbar{display:none;}
-.mw{display:flex;width:100%;}
-.mw.self{justify-content:flex-end;}
-.mw.other{justify-content:flex-start;}
-.mw.sys{justify-content:center;}
-.mb{max-width:83%;padding:9px 13px;border-radius:17px;font-size:13px;line-height:1.4;word-break:break-word;}
-.mw.self .mb{background:#2563eb;border-bottom-right-radius:3px;}
-.mw.other .mb{background:var(–card);border-top-left-radius:3px;}
-.mr{font-size:7px;font-weight:800;opacity:.45;text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px;}
-.mt{font-weight:500;color:var(–text);}
-.sys-msg{
-background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);
-padding:3px 13px;border-radius:99px;font-size:9px;font-weight:800;
-text-transform:uppercase;letter-spacing:.1em;color:#93c5fd;
-}
-
-#chat-foot{
-padding:9px 12px;padding-bottom:calc(9px + var(–safe-bottom));
-background:var(–surface);border-top:1px solid var(–border);
-display:flex;gap:8px;align-items:center;flex-shrink:0;
-}
-#chat-in{
-flex:1;background:#020617;border:1px solid var(–border2);border-radius:22px;
-padding:10px 16px;color:#ffffff;font-family:‘Syne’,sans-serif;font-size:14px;
-font-weight:500;outline:none;-webkit-appearance:none;transition:border-color .2s;
--webkit-text-fill-color:#ffffff;
-}
-#chat-in:focus{border-color:var(–blue);}
-#chat-in::placeholder{color:var(–border2);}
-#send-btn{
-width:43px;height:43px;background:#2563eb;border:none;border-radius:50%;
-display:flex;align-items:center;justify-content:center;cursor:pointer;
-flex-shrink:0;-webkit-appearance:none;transition:transform .12s,filter .15s;
-}
-#send-btn:active{transform:scale(.86);filter:brightness(.8);}
-
-/* Vitals edit panel */
-#panel-vitals{overflow-y:auto;-webkit-overflow-scrolling:touch;}
-.vedit-wrap{padding:14px;display:flex;flex-direction:column;gap:11px;}
-.vedit-card{background:var(–card);border:1px solid var(–border2);border-radius:14px;padding:13px 14px;}
-.vedit-card label{display:block;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(–muted);margin-bottom:7px;}
-.vedit-card input,.vedit-card select{
-width:100%;background:#020617;border:1px solid var(–border2);border-radius:10px;
-padding:10px 13px;color:#ffffff;font-family:‘JetBrains Mono’,monospace;
-font-size:16px;font-weight:700;outline:none;-webkit-appearance:none;transition:border-color .2s;
--webkit-text-fill-color:#ffffff;
-}
-.vedit-card input:focus,.vedit-card select:focus{border-color:var(–blue);}
-.vhint{font-size:9px;color:var(–muted);margin-top:5px;font-family:‘JetBrains Mono’,monospace;}
-.patient-only-note{
-font-size:10px;color:var(–amber);text-align:center;padding:12px;
-background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);
-border-radius:12px;font-family:‘JetBrains Mono’,monospace;
-}
-
-/* Typing */
-.typing-wrap{display:flex;}
-.typing-bubble{display:flex;gap:4px;align-items:center;padding:12px 14px;background:var(–card);border-radius:17px;border-top-left-radius:3px;}
-.tdot{width:6px;height:6px;border-radius:50%;background:var(–muted);animation:tdot 1.2s infinite;}
-.tdot:nth-child(2){animation-delay:.2s;}
-.tdot:nth-child(3){animation-delay:.4s;}
-@keyframes tdot{0%,60%,100%{transform:translateY(0);opacity:.4;}30%{transform:translateY(-5px);opacity:1;}}
-
-/* Modals */
-.modal{
-position:fixed;inset:0;background:rgba(0,0,0,.88);
-backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-z-index:100;display:flex;align-items:center;justify-content:center;
-padding:24px;animation:mFadeIn .22s ease-out;
-}
-.modal.hidden{display:none;}
-@keyframes mFadeIn{from{opacity:0;transform:scale(.95);}to{opacity:1;transform:scale(1);}}
-.modal-box{
-background:var(–surface);border:1px solid var(–border2);border-radius:22px;
-padding:26px 22px;width:100%;max-width:320px;text-align:center;
-}
-
-::-webkit-scrollbar{display:none;}
-</style>
-
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 3px; }
+  </style>
 </head>
-<body>
-<div id="app">
+<body class="bg-animated-cyan-magenta min-h-screen text-white font-sans antialiased flex justify-center items-center select-none overflow-x-hidden">
 
-<!-- ════════════ CONNECTION SCREEN ════════════ -->
+  <!-- カメラ入力用の隠しvideo要素 -->
+  <video id="cameraVideo" autoplay playsinline class="hidden"></video>
 
-<div id="conn-screen">
-  <div>
-    <div class="logo-big">CORE <span>EMS</span></div>
-    <div class="tagline">P2P Simulator</div>
-  </div>
+  <!-- App Container -->
+  <div class="w-full max-w-md h-screen md:h-[880px] md:max-h-[95vh] md:rounded-3xl shadow-2xl relative overflow-hidden flex flex-col bg-slate-950/40 border border-white/20">
 
-  <!-- HOST: create room -->
+    <!-- ==================== HOME SCREEN ==================== -->
+    <div id="homeScreen" class="absolute inset-0 flex flex-col justify-between p-6 z-10 transition-transform duration-300 ease-out">
 
-  <div class="conn-card" id="card-host">
-    <h3>🏥 患者役 — ルームを作成</h3>
-    <div class="room-code-disp" id="my-room-code">------</div>
-    <div class="copy-hint">タップでコピー</div>
-  </div>
-
-  <div class="divider">または</div>
-
-  <!-- JOIN: enter room code -->
-
-  <div class="conn-card">
-    <h3>🚑 救急隊員役 — ルームに参加</h3>
-    <input class="room-input" id="join-input" placeholder="XXXXXX" maxlength="6" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="characters">
-    <button class="btn btn-blue" onclick="joinRoom()">参加する</button>
-  </div>
-
-  <!-- Status -->
-
-  <div class="status-row" id="status-row">
-    <div class="sdot waiting" id="status-dot"></div>
-    <span id="status-text">接続待機中...</span>
-  </div>
-</div>
-
-<!-- ════════════ MAIN UI ════════════ -->
-
-<div id="main-ui">
-  <header>
-    <div class="logo">CORE <span>EMS</span></div>
-    <div class="hdr-right">
-      <div class="room-badge">
-        <div class="gdot"></div>
-        <span id="hdr-room-code">------</span>
+      <!-- App Header -->
+      <div class="text-center mt-2 space-y-2">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md shadow-lg border border-white/30 mb-1">
+          <i class="fa-solid fa-vr-cardboard text-3xl text-amber-300 drop-shadow"></i>
+        </div>
+        <h1 class="text-2xl font-black tracking-wider text-white drop-shadow-md">熱画像判読トレーニング</h1>
+        <p class="text-xs text-white/80 font-medium tracking-wide">VR対応 サーモグラフィ（TIC）解釈学習</p>
       </div>
-      <button class="role-btn" id="role-btn" onclick="toggleRole()">PARAMEDIC</button>
-    </div>
-  </header>
 
-  <div id="vitals-bar">
-    <div class="vc" id="vc-bp"><div class="vl">BP</div><div class="vv" id="vv-bp">--/--</div></div>
-    <div class="vc" id="vc-hr"><div class="vl">HR</div><div class="vv" id="vv-hr">--</div></div>
-    <div class="vc" id="vc-jcs"><div class="vl">JCS</div><div class="vv" id="vv-jcs">--</div></div>
-    <div class="vc" id="vc-spo2"><div class="vl">SpO2</div><div class="vv" id="vv-spo2">--%</div></div>
-  </div>
-  <div class="ecg"></div>
+      <!-- Mode Selector Tabs -->
+      <div class="flex bg-black/20 p-1 rounded-xl backdrop-blur-md border border-white/10 my-2">
+        <button id="tabPresetBtn" onclick="switchHomeTab('preset')" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white/30 shadow text-white transition-all">Preset Patterns</button>
+        <button id="tabCustomBtn" onclick="switchHomeTab('custom')" class="flex-1 py-2 text-xs font-bold rounded-lg text-white/70 hover:text-white transition-all">Custom Thermal</button>
+      </div>
 
-  <div id="tab-bar">
-    <button class="tab active" onclick="switchTab('chat',this)">📟 通信</button>
-    <button class="tab" onclick="switchTab('vitals',this)">📊 バイタル</button>
-    <button class="tab" onclick="switchTab('info',this)">📋 情報</button>
-  </div>
+      <!-- Preset Patterns View -->
+      <div id="presetTabContent" class="flex-1 flex flex-col justify-center space-y-3 my-2 overflow-y-auto pr-1">
 
-  <div id="panels">
-    <!-- Chat -->
-    <div class="panel active" id="panel-chat">
-      <div id="chat-scroll"></div>
-      <div id="chat-foot">
-        <input type="text" id="chat-in" placeholder="メッセージを入力..." autocomplete="off" autocorrect="off" autocapitalize="off">
-        <button id="send-btn" onclick="sendChat()">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        <button onclick="launchThermal(1)" class="glass-card rounded-2xl p-4 text-left transition-all duration-200 active:scale-95 hover:bg-white/30 group relative overflow-hidden shadow-lg">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-black uppercase tracking-wider text-cyan-200 bg-cyan-900/50 px-2.5 py-1 rounded-full border border-cyan-400/30">Pattern 01</span>
+            <span class="text-xs font-bold text-emerald-300 flex items-center gap-1"><i class="fa-solid fa-shield-halved"></i> 安定/低危険</span>
+          </div>
+          <h3 class="text-lg font-extrabold mt-2 text-white group-hover:translate-x-1 transition-transform">初期火災（天井熱気流）</h3>
+          <p class="text-xs text-white/80 mt-1 line-clamp-2">上層部のみにわずかな熱蓄積。中層・下層は低温（灰色）を保持。</p>
+        </button>
+
+        <button onclick="launchThermal(2)" class="glass-card rounded-2xl p-4 text-left transition-all duration-200 active:scale-95 hover:bg-white/30 group relative overflow-hidden shadow-lg">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-black uppercase tracking-wider text-amber-200 bg-amber-900/50 px-2.5 py-1 rounded-full border border-amber-400/30">Pattern 02</span>
+            <span class="text-xs font-bold text-amber-300 flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> 警戒/中危険</span>
+          </div>
+          <h3 class="text-lg font-extrabold mt-2 text-white group-hover:translate-x-1 transition-transform">熱気流降下（中層加熱）</h3>
+          <p class="text-xs text-white/80 mt-1 line-clamp-2">上層が高温化（赤色）。熱気流が中層（黄色）へ降下を始め、活動視界低下。</p>
+        </button>
+
+        <button onclick="launchThermal(3)" class="glass-card rounded-2xl p-4 text-left transition-all duration-200 active:scale-95 hover:bg-white/30 group relative overflow-hidden shadow-lg">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-black uppercase tracking-wider text-red-200 bg-red-900/50 px-2.5 py-1 rounded-full border border-red-400/30">Pattern 03</span>
+            <span class="text-xs font-bold text-red-400 flex items-center gap-1 animate-pulse"><i class="fa-solid fa-radiation"></i> 極めて危険</span>
+          </div>
+          <h3 class="text-lg font-extrabold mt-2 text-white group-hover:translate-x-1 transition-transform">フラッシュオーバー直前</h3>
+          <p class="text-xs text-white/80 mt-1 line-clamp-2">全層が高温化。上中下層全体が広範に黄色〜鮮烈な赤色に染まる状態。</p>
+        </button>
+
+        <button onclick="launchThermal(4)" class="glass-card rounded-2xl p-4 text-left transition-all duration-200 active:scale-95 hover:bg-white/30 group relative overflow-hidden shadow-lg">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-black uppercase tracking-wider text-purple-200 bg-purple-900/50 px-2.5 py-1 rounded-full border border-purple-400/30">Pattern 04</span>
+            <span class="text-xs font-bold text-purple-300 flex items-center gap-1"><i class="fa-solid fa-skull-crossbones"></i> バックドラフト徴候</span>
+          </div>
+          <h3 class="text-lg font-extrabold mt-2 text-white group-hover:translate-x-1 transition-transform">燻焼熱気（開口注意）</h3>
+          <p class="text-xs text-white/80 mt-1 line-clamp-2">中上層に未燃焼ガスの著しい高温蓄積（赤〜黄色）。開口による空気流入注意。</p>
+        </button>
+
+      </div>
+
+      <!-- Custom Pattern View -->
+      <div id="customTabContent" class="hidden flex-1 flex flex-col justify-center space-y-4 my-2 glass-card rounded-2xl p-4">
+        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-cyan-300"></i> 各層温度マニュアル設定
+        </h3>
+
+        <div class="space-y-1">
+          <div class="flex justify-between text-xs">
+            <span class="font-bold text-red-300">上層 (天井部):</span>
+            <span id="customTopVal" class="font-mono text-cyan-200">350°C</span>
+          </div>
+          <input type="range" id="sliderTop" min="20" max="700" value="350" oninput="updateCustomSliders()" class="w-full accent-red-500 h-2 bg-black/40 rounded-lg cursor-pointer">
+        </div>
+
+        <div class="space-y-1">
+          <div class="flex justify-between text-xs">
+            <span class="font-bold text-amber-300">中層 (目線部):</span>
+            <span id="customMidVal" class="font-mono text-cyan-200">120°C</span>
+          </div>
+          <input type="range" id="sliderMid" min="20" max="700" value="120" oninput="updateCustomSliders()" class="w-full accent-amber-500 h-2 bg-black/40 rounded-lg cursor-pointer">
+        </div>
+
+        <div class="space-y-1">
+          <div class="flex justify-between text-xs">
+            <span class="font-bold text-emerald-300">下層 (床上部):</span>
+            <span id="customBotVal" class="font-mono text-cyan-200">30°C</span>
+          </div>
+          <input type="range" id="sliderBot" min="20" max="700" value="30" oninput="updateCustomSliders()" class="w-full accent-emerald-500 h-2 bg-black/40 rounded-lg cursor-pointer">
+        </div>
+
+        <button onclick="launchCustomThermal()" class="w-full py-3 mt-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-extrabold text-sm rounded-xl shadow-lg active:scale-95 transition-all text-white flex items-center justify-center gap-2">
+          <i class="fa-solid fa-play"></i> カスタムVR画像を描画
         </button>
       </div>
-    </div>
 
-```
-<!-- Vitals -->
-<div class="panel" id="panel-vitals">
-  <div class="vedit-wrap">
-    <div id="patient-only-note" class="patient-only-note hidden">⚠️ 患者役のみバイタルを更新できます</div>
-    <div class="vedit-card">
-      <label>血圧 (BP)</label>
-      <input type="text" id="edit-bp" placeholder="120/80" inputmode="text">
-      <div class="vhint">正常: 90-139/60-89 mmHg</div>
-    </div>
-    <div class="vedit-card">
-      <label>心拍数 (HR)</label>
-      <input type="number" id="edit-hr" placeholder="80" inputmode="numeric" min="0" max="300">
-      <div class="vhint">正常: 60-100 bpm</div>
-    </div>
-    <div class="vedit-card">
-      <label>意識レベル (JCS)</label>
-      <select id="edit-jcs">
-        <option value="0">JCS 0 — 清明</option>
-        <option value="1">JCS 1 — 刺激なしで覚醒</option>
-        <option value="2">JCS 2 — 刺激で覚醒</option>
-        <option value="3">JCS 3 — 刺激しても覚醒しない</option>
-        <option value="10">JCS 10 — 普通の呼びかけで応じる</option>
-        <option value="20">JCS 20 — 大きな声で応じる</option>
-        <option value="30">JCS 30 — 痛みで辛うじて応じる</option>
-        <option value="100">JCS 100 — 払いのける動作</option>
-        <option value="200">JCS 200 — 少し手足動かす</option>
-        <option value="300">JCS 300 — 全く動かない</option>
-      </select>
-    </div>
-    <div class="vedit-card">
-      <label>酸素飽和度 (SpO2)</label>
-      <input type="number" id="edit-spo2" placeholder="98" inputmode="numeric" min="50" max="100">
-      <div class="vhint">正常: 96-100%</div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <button class="btn btn-blue" id="update-btn" onclick="updateVitals()">バイタル更新</button>
-      <button class="btn btn-green" id="arrival-btn" onclick="triggerArrival()">病院到着</button>
-    </div>
-    <button class="btn btn-red" onclick="openReset()">リセット</button>
-  </div>
-</div>
-
-<!-- Info -->
-<div class="panel" id="panel-info">
-  <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;display:flex;flex-direction:column;gap:12px;">
-    <div class="vedit-card">
-      <label>🔗 P2P接続の使い方</label>
-      <div style="font-size:11px;color:#94a3b8;line-height:1.7;">
-        <strong style="color:var(--text);">1. 患者役</strong>がアプリを開くと6桁のルームコードが表示されます。<br>
-        <strong style="color:var(--text);">2. 救急隊員役</strong>はそのコードを入力して「参加する」をタップ。<br>
-        <strong style="color:var(--text);">3. 接続後</strong>はチャット・バイタルがリアルタイム同期します。
+      <div class="text-center pt-2">
+        <p class="text-[10px] text-white/60">※ 本アプリは消防隊員のサーモグラフィ判読能力向上のためのVRシミュレーターです。</p>
       </div>
     </div>
-    <div class="vedit-card">
-      <label>🎭 ロール</label>
-      <div style="font-size:11px;color:#94a3b8;line-height:1.7;">
-        <strong style="color:var(--text);">PARAMEDIC:</strong> チャットで患者に問診・指示<br>
-        <strong style="color:var(--text);">PATIENT:</strong> バイタルタブでバイタルを更新・相手に送信
+
+
+    <!-- ==================== THERMAL VIEW SCREEN ==================== -->
+    <div id="viewScreen" class="absolute inset-0 bg-slate-950 flex flex-col justify-between p-4 z-20 translate-x-full transition-transform duration-300 ease-out overflow-y-auto">
+
+      <!-- Top Navigation Bar -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <button onclick="closeThermal()" class="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:scale-95 text-xs font-bold text-white transition-all border border-slate-700">
+          <i class="fa-solid fa-arrow-left text-cyan-400"></i> 戻る
+        </button>
+
+        <div class="text-center">
+          <h2 id="viewTitle" class="text-sm font-extrabold text-white">Pattern Title</h2>
+          <span id="viewSubtitle" class="text-[10px] text-slate-400">VR Thermal Camera View</span>
+        </div>
+
+        <button onclick="togglePalette()" class="px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-xs font-bold text-amber-300 transition-all border border-slate-700 flex items-center gap-1.5">
+          <i class="fa-solid fa-palette"></i>
+          <span id="paletteLabel" class="text-[10px]">Standard</span>
+        </button>
       </div>
-    </div>
-    <div class="vedit-card">
-      <label>📊 バイタル基準値</label>
-      <div style="font-size:11px;color:#94a3b8;font-family:'JetBrains Mono',monospace;line-height:1.9;">
-        BP: 正常 90-139/60-89 mmHg<br>
-        HR: 正常 60-100 bpm<br>
-        JCS: 0=清明、数値↑=意識障害<br>
-        SpO2: 正常 96-100%（90%↓=危険）
+
+      <!-- TIC Monitor Frame (Three.js WebGL/WebXR Canvas Container) -->
+      <div class="my-3 flex-1 flex flex-col min-h-[380px]">
+
+        <div id="vrContainer" class="relative w-full flex-1 bg-black rounded-2xl overflow-hidden border-2 border-slate-700 shadow-2xl flex flex-col">
+
+          <!-- HUD Overlay -->
+          <div class="absolute top-2 left-3 right-3 flex justify-between items-center text-[11px] font-mono font-bold text-amber-400 z-10 pointer-events-none drop-shadow">
+            <span class="flex items-center gap-1"><i class="fa-solid fa-video text-red-500 animate-pulse"></i> VR LIVE</span>
+            <span id="hudMaxTemp" class="bg-black/60 px-2 py-0.5 rounded border border-amber-500/30">MAX: ---°C</span>
+          </div>
+
+          <!-- Badges Overlay -->
+          <div class="absolute inset-x-0 inset-y-0 flex flex-col justify-between p-3 pointer-events-none z-10">
+            <div class="flex justify-between items-start">
+              <span class="text-[11px] font-bold bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md border border-red-500/40 text-red-300">上層 (天井)</span>
+              <span id="badgeTopTemp" class="text-sm font-mono font-black bg-black/70 px-2 py-0.5 rounded text-red-400 border border-red-500/40">--°C</span>
+            </div>
+
+            <div class="flex justify-between items-center">
+              <span class="text-[11px] font-bold bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md border border-amber-500/40 text-amber-300">中層 (目線)</span>
+              <span id="badgeMidTemp" class="text-sm font-mono font-black bg-black/70 px-2 py-0.5 rounded text-amber-400 border border-amber-500/40">--°C</span>
+            </div>
+
+            <div class="flex justify-between items-end">
+              <span class="text-[11px] font-bold bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md border border-gray-400/40 text-gray-300">下層 (床上)</span>
+              <span id="badgeBotTemp" class="text-sm font-mono font-black bg-black/70 px-2 py-0.5 rounded text-gray-300 border border-gray-400/40">--°C</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Color Temperature Scale Bar -->
+        <div class="mt-2 space-y-1">
+          <div class="h-4 w-full rounded-lg overflow-hidden border border-slate-700 shadow-inner flex" id="gradientBar"></div>
+          <div class="flex justify-between text-[10px] text-slate-300 font-mono px-1">
+            <span>低温 (20°C)</span>
+            <span>中温 (250°C)</span>
+            <span>高温 (600°C+)</span>
+          </div>
+        </div>
+
       </div>
+
+      <!-- Analysis & Tactics Card -->
+      <div class="glass-card-dark rounded-2xl p-4 space-y-2 border border-slate-800">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <span class="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-magnifying-glass-chart"></i> 熱画像判読解析結果
+          </span>
+          <span id="riskBadge" class="text-[10px] font-black px-2 py-0.5 rounded-full bg-red-900/60 text-red-300 border border-red-500/40">
+            DANGER
+          </span>
+        </div>
+
+        <p id="analysisText" class="text-xs leading-relaxed text-slate-200 font-medium">解析テキスト</p>
+
+        <div class="pt-2">
+          <span class="text-[11px] font-bold text-amber-300 block mb-1">【推奨戦術行動】</span>
+          <div id="tacticsList" class="text-xs text-slate-300 space-y-1"></div>
+        </div>
+      </div>
+
     </div>
-    <div style="padding:12px;background:rgba(59,130,246,.07);border:1px solid rgba(59,130,246,.18);border-radius:12px;">
-      <div style="font-size:9px;color:#93c5fd;font-weight:800;margin-bottom:3px;">CORE EMS Simulator — P2P版</div>
-      <div style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;">教育・訓練目的専用<br>実際の医療判断に使用しないこと</div>
-    </div>
-  </div>
-</div>
-```
 
   </div>
-</div>
 
-<!-- Arrival Modal -->
+  <!-- Three.js + WebXR Logic Module -->
+  <script type="module">
+    import * as THREE from 'three';
+    import { VRButton } from 'three/addons/webxr/VRButton.js';
 
-<div class="modal hidden" id="arrival-modal">
-  <div class="modal-box">
-    <div style="font-size:48px;margin-bottom:10px;">🏥</div>
-    <div style="font-size:17px;font-weight:900;letter-spacing:-.03em;margin-bottom:6px;">病院に到着しました</div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:22px;font-family:'JetBrains Mono',monospace;">患者を医療スタッフに引き継ぎました</div>
-    <button class="btn btn-blue" onclick="closeArrival()">閉じる</button>
-  </div>
-</div>
+    const thermalPatterns = {
+      1: {
+        title: "パターン 01：初期火災",
+        subtitle: "天井熱気流の蓄積初期",
+        topTemp: 220, midTemp: 45, botTemp: 22,
+        riskLevel: "LOW RISK",
+        riskClass: "bg-emerald-900/60 text-emerald-300 border-emerald-500/40",
+        analysis: "天井付近（上層）に黄色〜薄い赤色の熱気流が滞留し始めていますが、中層および下層は正常温度（灰色）を保っています。",
+        tactics: ["✔ 低い姿勢を保持して迅速な進入・捜索が可能", "✔ 熱流源（火元）に向けたピンポイント注水", "✔ 排煙口の確保"]
+      },
+      2: {
+        title: "パターン 02：熱気流降下",
+        subtitle: "中層加熱・中度危険状態",
+        topTemp: 480, midTemp: 240, botTemp: 50,
+        riskLevel: "WARNING",
+        riskClass: "bg-amber-900/60 text-amber-300 border-amber-500/40",
+        analysis: "上層部が著しく高温化（赤色）。中層（目線付近）まで熱気流が降下して黄色へ変化し、熱放射が及んでいます。",
+        tactics: ["⚠ 低い姿勢の徹底", "✔ 天井・上層領域への短い冷却断続注水", "✔ 給気と排煙のバランスを制御"]
+      },
+      3: {
+        title: "パターン 03：フラッシュオーバー直前",
+        subtitle: "全層過熱・極めて危険",
+        topTemp: 660, midTemp: 510, botTemp: 280,
+        riskLevel: "CRITICAL DANGER",
+        riskClass: "bg-red-900/60 text-red-300 border-red-500/40 animate-pulse",
+        analysis: "室内全体で熱階層が超高温域に達しており、フラッシュオーバーが切迫しています。",
+        tactics: ["🚨 直ちに水幕形成および広角注水", "🚨 即時冷却が困難な場合は直ちに退避", "✖ 無計画な開放厳禁"]
+      },
+      4: {
+        title: "パターン 04：燻焼熱気蓄積",
+        subtitle: "バックドラフト前兆警戒",
+        topTemp: 540, midTemp: 320, botTemp: 85,
+        riskLevel: "BACKDRAFT RISK",
+        riskClass: "bg-purple-900/60 text-purple-300 border-purple-500/40",
+        analysis: "密閉空間内で不完全燃焼ガスが高温（赤色〜濃い黄色）のまま上・中層へ濃縮蓄積されています。",
+        tactics: ["⚠️ 開口の瞬間に爆発的燃焼のリスク", "✔ 扉開口前の「間口上部への冷却注水」", "✔ 高所からの垂直排煙を最優先"]
+      }
+    };
 
-<!-- Reset Modal -->
+    let currentData = thermalPatterns[1];
+    let cameraStream = null;
+    let scene, camera, renderer, videoTexture, thermalMaterial, vrButtonElement;
+    let paletteMode = 0;
 
-<div class="modal hidden" id="reset-modal">
-  <div class="modal-box">
-    <div style="font-size:12px;font-weight:900;color:var(--red);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;">リセット確認</div>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:20px;">全データと会話を初期化します</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <button class="btn btn-ghost" onclick="closeReset()">キャンセル</button>
-      <button class="btn btn-red" onclick="doReset()">リセット</button>
-    </div>
-  </div>
-</div>
+    // Three.js VR 3D環境の初期化
+    function initThreeVR() {
+      const container = document.getElementById('vrContainer');
+      const w = container.clientWidth || 320;
+      const h = container.clientHeight || 380;
 
-<script>
-// ─── State ───
-let peer = null;
-let conn = null;
-let myRole = 'paramedic';
-let isHost = false;
-let myRoomCode = '';
-let vitals = { bp:'--/--', hr:'--', jcs:'--', spo2:'--%' };
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(70, w / h, 0.1, 1000);
 
-// ─── Generate 6-char room code ───
-function genCode() {
-  return Math.random().toString(36).substring(2,8).toUpperCase();
-}
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(w, h);
+      renderer.xr.enabled = true;
+      container.appendChild(renderer.domElement);
 
-// ─── Init as HOST (patient side creates the room) ───
-function initHost() {
-  myRoomCode = genCode();
-  document.getElementById('my-room-code').textContent = myRoomCode;
-  document.getElementById('my-room-code').onclick = () => {
-    navigator.clipboard?.writeText(myRoomCode).catch(()=>{});
-    document.getElementById('my-room-code').textContent = 'COPIED!';
-    setTimeout(()=> document.getElementById('my-room-code').textContent = myRoomCode, 1200);
-  };
+      // VR Buttonの設置
+      vrButtonElement = VRButton.createButton(renderer);
+      vrButtonElement.style.position = 'absolute';
+      vrButtonElement.style.bottom = '10px';
+      vrButtonElement.style.left = '50%';
+      vrButtonElement.style.transform = 'translateX(-50%)';
+      vrButtonElement.style.zIndex = '30';
+      container.appendChild(vrButtonElement);
 
-  setStatus('connecting', 'PeerJSサーバーに接続中...');
-  peer = new Peer('ems-' + myRoomCode, { debug: 0 });
+      const video = document.getElementById('cameraVideo');
+      videoTexture = new THREE.VideoTexture(video);
+      videoTexture.colorSpace = THREE.SRGBColorSpace;
 
-  peer.on('open', () => {
-    isHost = true;
-    setStatus('waiting', 'ルームコード: ' + myRoomCode + ' — 相手の接続を待機中');
-  });
+      // カスタムサーモグラフィーGLSLシェーダー
+      thermalMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+          tDiffuse: { value: videoTexture },
+          uTopTemp: { value: currentData.topTemp },
+          uMidTemp: { value: currentData.midTemp },
+          uBotTemp: { value: currentData.botTemp },
+          uPaletteMode: { value: 0 }
+        },
+        vertexShader: `
+          varying vec2 vUv;
+          varying vec3 vWorldPosition;
+          void main() {
+            vUv = uv;
+            vec4 worldPos = modelMatrix * vec4(position, 1.0);
+            vWorldPosition = worldPos.xyz;
+            gl_Position = projectionMatrix * viewMatrix * worldPos;
+          }
+        `,
+        fragmentShader: `
+          uniform sampler2D tDiffuse;
+          uniform float uTopTemp;
+          uniform float uMidTemp;
+          uniform float uBotTemp;
+          uniform int uPaletteMode;
+          varying vec2 vUv;
 
-  peer.on('connection', (c) => {
-    conn = c;
-    setupConn();
-    setStatus('connected', '接続完了！ ルーム: ' + myRoomCode);
-    setTimeout(() => showMainUI(), 800);
-  });
+          vec3 tempToColor(float temp) {
+            float norm = clamp((temp - 20.0) / 630.0, 0.0, 1.0);
+            if (uPaletteMode == 0) {
+              if (norm < 0.4) {
+                float t = norm / 0.4;
+                return vec3((110.0 + t * 145.0)/255.0, (110.0 + t * 110.0)/255.0, (110.0 * (1.0 - t))/255.0);
+              } else {
+                float t = (norm - 0.4) / 0.6;
+                return vec3((255.0 - t * 25.0)/255.0, (220.0 * (1.0 - t))/255.0, 0.0);
+              }
+            } else if (uPaletteMode == 1) {
+              return vec3(norm, norm * 0.5, 1.0 - norm);
+            } else {
+              return vec3(norm);
+            }
+          }
 
-  peer.on('error', (e) => {
-    if (e.type === 'unavailable-id') {
-      // Code taken, try again
-      peer.destroy();
-      initHost();
-    } else {
-      setStatus('error', 'エラー: ' + e.type);
+          void main() {
+            vec4 color = texture2D(tDiffuse, vUv);
+            float luma = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+
+            float ny = 1.0 - vUv.y;
+            float baseTemp;
+            if (ny <= 0.5) {
+              float t = ny / 0.5;
+              float smoothT = t * t * (3.0 - 2.0 * t);
+              baseTemp = mix(uTopTemp, uMidTemp, smoothT);
+            } else {
+              float t = (ny - 0.5) / 0.5;
+              float smoothT = t * t * (3.0 - 2.0 * t);
+              baseTemp = mix(uMidTemp, uBotTemp, smoothT);
+            }
+
+            float pixelTemp = max(15.0, baseTemp * (0.6 + luma * 0.8));
+            gl_FragColor = vec4(tempToColor(pixelTemp), 1.0);
+          }
+        `,
+        side: THREE.DoubleSide
+      });
+
+      const geometry = new THREE.PlaneGeometry(3.2, 2.0);
+      const screenMesh = new THREE.Mesh(geometry, thermalMaterial);
+      screenMesh.position.set(0, 1.5, -2);
+      scene.add(screenMesh);
+
+      renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
+      });
     }
-  });
-}
 
-// ─── Join as GUEST (paramedic side) ───
-function joinRoom() {
-  const raw = document.getElementById('join-input').value.trim().toUpperCase();
-  if (raw.length < 4) { setStatus('error', '6桁のコードを入力してください'); return; }
-  const code = raw.length === 6 ? raw : raw;
-
-  setStatus('connecting', '接続中... (' + code + ')');
-  peer = new Peer(undefined, { debug: 0 });
-
-  peer.on('open', () => {
-    conn = peer.connect('ems-' + code, { reliable: true });
-    setupConn();
-    conn.on('open', () => {
-      myRoomCode = code;
-      isHost = false;
-      setStatus('connected', '接続完了！ ルーム: ' + code);
-      setTimeout(() => showMainUI(), 600);
-    });
-  });
-
-  peer.on('error', (e) => {
-    setStatus('error', '接続失敗: ' + e.type + ' — コードを確認してください');
-  });
-}
-
-// ─── Setup data channel ───
-function setupConn() {
-  conn.on('data', (data) => {
-    if (data.type === 'chat') {
-      renderMsg(data.text, data.role, false);
-    } else if (data.type === 'vitals') {
-      applyVitals(data.vitals);
-      addSysMsg('📊 バイタル更新: BP ' + data.vitals.bp + ' HR ' + data.vitals.hr + ' JCS ' + data.vitals.jcs + ' SpO2 ' + data.vitals.spo2);
-    } else if (data.type === 'arrived') {
-      document.getElementById('arrival-modal').classList.remove('hidden');
-    } else if (data.type === 'reset') {
-      doResetLocal();
-      addSysMsg('🔄 相手がリセットしました');
-    } else if (data.type === 'sys') {
-      addSysMsg(data.text);
+    async function initCamera() {
+      if (!cameraStream) {
+        try {
+          const constraints = { video: { facingMode: { ideal: "environment" }, width: { ideal: 640 }, height: { ideal: 480 } } };
+          cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+          const video = document.getElementById('cameraVideo');
+          video.srcObject = cameraStream;
+          await video.play();
+        } catch (err) {
+          console.error("Camera Error:", err);
+          alert("カメラの許可が必要です。");
+        }
+      }
     }
-  });
 
-  conn.on('close', () => {
-    addSysMsg('⚠️ 相手との接続が切断されました');
-  });
-}
+    function stopCamera() {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+      }
+    }
 
-// ─── Show main UI ───
-function showMainUI() {
-  document.getElementById('conn-screen').style.display = 'none';
-  const mu = document.getElementById('main-ui');
-  mu.style.display = 'flex';
-  mu.style.flexDirection = 'column';
-  document.getElementById('hdr-room-code').textContent = myRoomCode;
+    function updateUniforms() {
+      if (thermalMaterial) {
+        thermalMaterial.uniforms.uTopTemp.value = currentData.topTemp;
+        thermalMaterial.uniforms.uMidTemp.value = currentData.midTemp;
+        thermalMaterial.uniforms.uBotTemp.value = currentData.botTemp;
+        thermalMaterial.uniforms.uPaletteMode.value = paletteMode;
+      }
+    }
 
-  // Host defaults to PATIENT role, Guest defaults to PARAMEDIC
-  if (isHost) {
-    myRole = 'patient';
-    document.getElementById('role-btn').textContent = 'PATIENT';
-    document.getElementById('role-btn').classList.add('patient-mode');
-  }
+    window.launchThermal = async function(patternId) {
+      currentData = thermalPatterns[patternId];
+      updateViewUI();
+      await initCamera();
+      if (!renderer) initThreeVR();
+      updateUniforms();
+      document.getElementById('viewScreen').classList.remove('translate-x-full');
+    };
 
-  addSysMsg('🚑 接続完了 — ルーム ' + myRoomCode);
-  addSysMsg(isHost ? '🔴 あなたは患者役です' : '🔵 あなたは救急隊員役です');
-  updatePatientControls();
-}
+    window.launchCustomThermal = async function() {
+      const top = parseInt(document.getElementById('sliderTop').value);
+      const mid = parseInt(document.getElementById('sliderMid').value);
+      const bot = parseInt(document.getElementById('sliderBot').value);
 
-// ─── Status helpers ───
-function setStatus(state, text) {
-  const dot = document.getElementById('status-dot');
-  dot.className = 'sdot ' + state;
-  document.getElementById('status-text').textContent = text;
-}
+      currentData = {
+        title: "カスタム設定パターン",
+        subtitle: "手動設定温度分布",
+        topTemp: top, midTemp: mid, botTemp: bot,
+        riskLevel: top > 500 ? "HIGH RISK" : "CUSTOM MODE",
+        riskClass: top > 500 ? "bg-red-900/60 text-red-300 border-red-500/40" : "bg-blue-900/60 text-blue-300 border-blue-500/40",
+        analysis: "ユーザー定義の温度分布です。",
+        tactics: ["・熱階層の変化を観察して危険度を評価してください"]
+      };
 
-// ─── Tab switching ───
-function switchTab(name, btn) {
-  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  document.querySelectorAll('.panel').forEach(p => { p.style.display='none'; p.classList.remove('active'); });
-  const panel = document.getElementById('panel-' + name);
-  if (panel) { panel.style.display = 'flex'; panel.classList.add('active'); }
-}
+      updateViewUI();
+      await initCamera();
+      if (!renderer) initThreeVR();
+      updateUniforms();
+      document.getElementById('viewScreen').classList.remove('translate-x-full');
+    };
 
-// ─── Role toggle ───
-function toggleRole() {
-  myRole = myRole === 'paramedic' ? 'patient' : 'paramedic';
-  const btn = document.getElementById('role-btn');
-  btn.textContent = myRole.toUpperCase();
-  btn.classList.toggle('patient-mode', myRole === 'patient');
-  addSysMsg(myRole === 'patient' ? '🔴 患者モードに切り替え' : '🔵 救急隊員モードに切り替え');
-  updatePatientControls();
-}
+    window.closeThermal = function() {
+      document.getElementById('viewScreen').classList.add('translate-x-full');
+      stopCamera();
+    };
 
-function updatePatientControls() {
-  const isPatient = myRole === 'patient';
-  const note = document.getElementById('patient-only-note');
-  const editInputs = document.querySelectorAll('.vedit-card input, .vedit-card select');
-  const updateBtn = document.getElementById('update-btn');
-  const arrivalBtn = document.getElementById('arrival-btn');
-  note.classList.toggle('hidden', isPatient);
-  editInputs.forEach(el => el.disabled = !isPatient);
-  updateBtn.disabled = !isPatient;
-  arrivalBtn.disabled = !isPatient;
-  updateBtn.style.opacity = isPatient ? '1' : '.4';
-  arrivalBtn.style.opacity = isPatient ? '1' : '.4';
-}
+    window.togglePalette = function() {
+      paletteMode = (paletteMode + 1) % 3;
+      const labels = ["Standard", "Ironbow", "Grayscale"];
+      document.getElementById('paletteLabel').innerText = labels[paletteMode];
+      updateUniforms();
+    };
 
-// ─── Vitals ───
-function applyVitals(v) {
-  vitals = { ...vitals, ...v };
-  setVital('bp', v.bp);
-  setVital('hr', v.hr);
-  setVital('jcs', v.jcs);
-  setVital('spo2', v.spo2);
-}
+    function updateViewUI() {
+      document.getElementById('viewTitle').innerText = currentData.title;
+      document.getElementById('viewSubtitle').innerText = currentData.subtitle;
+      document.getElementById('badgeTopTemp').innerText = currentData.topTemp + "°C";
+      document.getElementById('badgeMidTemp').innerText = currentData.midTemp + "°C";
+      document.getElementById('badgeBotTemp').innerText = currentData.botTemp + "°C";
+      document.getElementById('hudMaxTemp').innerText = "MAX: " + Math.max(currentData.topTemp, currentData.midTemp, currentData.botTemp) + "°C";
 
-function setVital(key, val) {
-  if (!val) return;
-  const el = document.getElementById('vv-' + key);
-  const cell = document.getElementById('vc-' + key);
-  if (!el) return;
-  el.textContent = val;
-  cell.classList.remove('flash','crit','warn','ok');
-  if (key === 'hr') {
-    const n = parseInt(val);
-    if (n < 50 || n > 130) cell.classList.add('crit');
-    else if (n < 60 || n > 100) cell.classList.add('warn');
-    else cell.classList.add('ok');
-  } else if (key === 'spo2') {
-    const n = parseInt(val);
-    if (n < 90) cell.classList.add('crit');
-    else if (n < 95) cell.classList.add('warn');
-    else cell.classList.add('ok');
-  } else if (key === 'jcs') {
-    const n = parseInt(val);
-    if (n >= 100) cell.classList.add('crit');
-    else if (n >= 10) cell.classList.add('warn');
-    else if (n === 0) cell.classList.add('ok');
-  } else if (key === 'bp') {
-    const sys = parseInt(val.split('/')[0]);
-    if (sys < 90 || sys > 160) cell.classList.add('crit');
-    else if (sys < 100 || sys > 139) cell.classList.add('warn');
-    else cell.classList.add('ok');
-  }
-  void cell.offsetWidth;
-  cell.classList.add('flash');
-}
+      const riskBadge = document.getElementById('riskBadge');
+      riskBadge.innerText = currentData.riskLevel;
+      riskBadge.className = "text-[10px] font-black px-2 py-0.5 rounded-full border " + currentData.riskClass;
 
-function updateVitals() {
-  if (myRole !== 'patient') return;
-  const v = {
-    bp: document.getElementById('edit-bp').value || '--/--',
-    hr: document.getElementById('edit-hr').value || '--',
-    jcs: document.getElementById('edit-jcs').value,
-    spo2: (document.getElementById('edit-spo2').value || '--') + '%'
-  };
-  applyVitals(v);
-  addSysMsg('📊 バイタル更新送信中...');
-  send({ type: 'vitals', vitals: v });
-}
+      document.getElementById('analysisText').innerText = currentData.analysis;
+      document.getElementById('tacticsList').innerHTML = currentData.tactics.map(t => `<p>${t}</p>`).join('');
+    }
 
-// ─── Chat ───
-function sendChat() {
-  const inp = document.getElementById('chat-in');
-  const text = inp.value.trim();
-  if (!text) return;
-  inp.value = '';
-  renderMsg(text, myRole, true);
-  send({ type: 'chat', text, role: myRole });
-}
+    window.switchHomeTab = function(tab) {
+      if (tab === 'preset') {
+        document.getElementById('tabPresetBtn').className = "flex-1 py-2 text-xs font-bold rounded-lg bg-white/30 shadow text-white transition-all";
+        document.getElementById('tabCustomBtn').className = "flex-1 py-2 text-xs font-bold rounded-lg text-white/70 hover:text-white transition-all";
+        document.getElementById('presetTabContent').classList.remove('hidden');
+        document.getElementById('customTabContent').classList.add('hidden');
+      } else {
+        document.getElementById('tabCustomBtn').className = "flex-1 py-2 text-xs font-bold rounded-lg bg-white/30 shadow text-white transition-all";
+        document.getElementById('tabPresetBtn').className = "flex-1 py-2 text-xs font-bold rounded-lg text-white/70 hover:text-white transition-all";
+        document.getElementById('customTabContent').classList.remove('hidden');
+        document.getElementById('presetTabContent').classList.add('hidden');
+      }
+    };
 
-function renderMsg(text, role, self) {
-  const c = document.getElementById('chat-scroll');
-  const div = document.createElement('div');
-  div.className = 'mw ' + (self ? 'self' : 'other');
-  div.innerHTML = `<div class="mb"><div class="mr">${esc(role)}</div><div class="mt">${esc(text)}</div></div>`;
-  c.appendChild(div);
-  c.scrollTop = c.scrollHeight;
-}
-
-function addSysMsg(text) {
-  const c = document.getElementById('chat-scroll');
-  const div = document.createElement('div');
-  div.className = 'mw sys';
-  div.innerHTML = `<div class="sys-msg">${esc(text)}</div>`;
-  c.appendChild(div);
-  c.scrollTop = c.scrollHeight;
-}
-
-// ─── Arrival ───
-function triggerArrival() {
-  if (myRole !== 'patient') return;
-  document.getElementById('arrival-modal').classList.remove('hidden');
-  send({ type: 'arrived' });
-}
-function closeArrival() {
-  document.getElementById('arrival-modal').classList.add('hidden');
-  addSysMsg('🏥 病院に到着しシミュレーション終了');
-}
-
-// ─── Reset ───
-function openReset() { document.getElementById('reset-modal').classList.remove('hidden'); }
-function closeReset() { document.getElementById('reset-modal').classList.add('hidden'); }
-function doReset() {
-  closeReset();
-  doResetLocal();
-  send({ type: 'reset' });
-  addSysMsg('🔄 リセット完了');
-}
-function doResetLocal() {
-  ['bp','hr','jcs','spo2'].forEach(k => setVital(k, k === 'spo2' ? '--%' : '--'));
-  vitals = { bp:'--/--', hr:'--', jcs:'--', spo2:'--%' };
-  ['edit-bp','edit-hr','edit-spo2'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
-  const jcsEl = document.getElementById('edit-jcs');
-  if (jcsEl) jcsEl.selectedIndex = 0;
-  document.getElementById('chat-scroll').innerHTML = '';
-}
-
-// ─── P2P send ───
-function send(data) {
-  try { if (conn && conn.open) conn.send(data); } catch(e) { console.warn('Send failed', e); }
-}
-
-// ─── Escape ───
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-// ─── Event listeners ───
-document.getElementById('chat-in').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
-});
-document.getElementById('join-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') joinRoom();
-});
-
-// ─── Boot: always start as host first ───
-initHost();
-</script>
-
+    window.updateCustomSliders = function() {
+      document.getElementById('customTopVal').innerText = document.getElementById('sliderTop').value + "°C";
+      document.getElementById('customMidVal').innerText = document.getElementById('sliderMid').value + "°C";
+      document.getElementById('customBotVal').innerText = document.getElementById('sliderBot').value + "°C";
+    };
+  </script>
 </body>
 </html>
