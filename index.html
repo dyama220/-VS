@@ -420,7 +420,7 @@
               float luma = dot(color.rgb, vec3(0.299, 0.587, 0.114));
 
               // 画素ごとの「実世界の仰角」= 端末の仰角 + 画面内の位置
-              float elev = uPitch + (0.5 - vUv.y) * uVFov;
+              float elev = uPitch + (vUv.y - 0.5) * uVFov;
               float h = clamp(elev / uRange, -1.0, 1.0); // -1:床 0:目線 +1:天井
               float baseTemp;
               if (h >= 0.0) {
