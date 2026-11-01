@@ -6,13 +6,13 @@
   <title>消防士向け 熱画像判読トレーニング (VRカメラ完全融合版)</title>
 
   <!-- Tailwind CSS -->
-  <script src="<https://cdn.tailwindcss.com>"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
 
   <!-- Font Awesome Icons -->
-  <link rel="stylesheet" href="<https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css>">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  <!-- Three.js (標準スクリプト読み込みでボタン動作を確実に保証) -->
-  <script src="[suspicious link removed]"></script>
+  <!-- Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
   <style>
     @keyframes cyanMagentaShift {
@@ -20,48 +20,42 @@
       50% { background-position: 100% 50%; }
       100% { background-position: 0% 50%; }
     }
-
     .bg-animated-cyan-magenta {
       background: linear-gradient(-45deg, #00f2fe, #00c6ff, #9b51e0, #f355da, #e60067);
       background-size: 400% 400%;
       animation: cyanMagentaShift 12s ease infinite;
     }
-
     .glass-card {
       background: rgba(255, 255, 255, 0.18);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.3);
     }
-
     .glass-card-dark {
       background: rgba(18, 18, 24, 0.85);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid rgba(255, 255, 255, 0.1);
     }
-
-    button, input, select {
-      touch-action: manipulation;
-    }
-
+    button, input, select { touch-action: manipulation; }
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); }
     ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 3px; }
+    #vrContainer canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; display: block; }
   </style>
 </head>
 <body class="bg-animated-cyan-magenta min-h-screen text-white font-sans antialiased flex justify-center items-center select-none overflow-x-hidden">
 
-  <!-- カメラ入力用の隠しvideo要素 -->
-  <video id="cameraVideo" autoplay playsinline style="display:none;"></video>
+  <!-- カメラ入力用の隠しvideo要素（iOS対策: display:noneにしない） -->
+  <video id="cameraVideo" autoplay playsinline muted
+    style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;"></video>
 
   <!-- App Container -->
   <div class="w-full max-w-md h-screen md:h-[880px] md:max-h-[95vh] md:rounded-3xl shadow-2xl relative overflow-hidden flex flex-col bg-slate-950/40 border border-white/20">
 
     <!-- ==================== HOME SCREEN ==================== -->
-    <div id="homeScreen" class="absolute inset-0 flex flex-col justify-between p-6 z-10 transition-transform duration-300 ease-out">
+    <div id="homeScreen" class="absolute inset-0 flex flex-col justify-between p-6 z-10">
 
-      <!-- App Header -->
       <div class="text-center mt-2 space-y-2">
         <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-md shadow-lg border border-white/30 mb-1">
           <i class="fa-solid fa-vr-cardboard text-3xl text-amber-300 drop-shadow"></i>
@@ -70,58 +64,52 @@
         <p class="text-xs text-white/80 font-medium tracking-wide">消防隊員向け サーモグラフィ（TIC）解釈学習</p>
       </div>
 
-      <!-- Mode Selector Tabs -->
       <div class="flex bg-black/20 p-1 rounded-xl backdrop-blur-md border border-white/10 my-2">
         <button id="tabPresetBtn" onclick="switchHomeTab('preset')" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white/30 shadow text-white transition-all">Preset Patterns</button>
         <button id="tabCustomBtn" onclick="switchHomeTab('custom')" class="flex-1 py-2 text-xs font-bold rounded-lg text-white/70 hover:text-white transition-all">Custom Thermal</button>
       </div>
 
-      <!-- Preset Patterns View -->
+      <!-- Preset Patterns -->
       <div id="presetTabContent" class="flex-1 flex flex-col justify-center space-y-3 my-2 overflow-y-auto pr-1">
 
-        <!-- Pattern 1 -->
         <button onclick="launchThermal(1)" class="glass-card rounded-2xl p-4 text-left transition-all duration-200 active:scale-95 hover:bg-white/30 group relative overflow-hidden shadow-lg">
           <div class="flex items-center justify-between">
             <span class="text-xs font-black uppercase tracking-wider text-cyan-200 bg-cyan-900/50 px-2.5 py-1 rounded-full border border-cyan-400/30">Pattern 01</span>
             <span class="text-xs font-bold text-emerald-300 flex items-center gap-1"><i class="fa-solid fa-shield-halved"></i> 安定/低危険</span>
           </div>
           <h3 class="text-lg font-extrabold mt-2 text-white group-hover:translate-x-1 transition-transform">初期火災（天井熱気流）</h3>
-          <p class="text-xs text-white/80 mt-1 line-clamp-2">上層部のみにわずかな熱蓄積。中層・下層は低温（灰色）を保持。</p>
+          <p class="text-xs text-white/80 mt-1">上層部のみにわずかな熱蓄積。中層・下層は低温（灰色）を保持。</p>
         </button>
 
-        <!-- Pattern 2 -->
         <button onclick="launchThermal(2)" class="glass-card rounded-2xl p-4 text-left transition-all duration-200 active:scale-95 hover:bg-white/30 group relative overflow-hidden shadow-lg">
           <div class="flex items-center justify-between">
             <span class="text-xs font-black uppercase tracking-wider text-amber-200 bg-amber-900/50 px-2.5 py-1 rounded-full border border-amber-400/30">Pattern 02</span>
             <span class="text-xs font-bold text-amber-300 flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> 警戒/中危険</span>
           </div>
           <h3 class="text-lg font-extrabold mt-2 text-white group-hover:translate-x-1 transition-transform">熱気流降下（中層加熱）</h3>
-          <p class="text-xs text-white/80 mt-1 line-clamp-2">上層が高温化（赤色）。熱気流が中層（黄色）へ降下を始め、活動視界低下。</p>
+          <p class="text-xs text-white/80 mt-1">上層が高温化（赤色）。熱気流が中層（黄色）へ降下を始め、活動視界低下。</p>
         </button>
 
-        <!-- Pattern 3 -->
         <button onclick="launchThermal(3)" class="glass-card rounded-2xl p-4 text-left transition-all duration-200 active:scale-95 hover:bg-white/30 group relative overflow-hidden shadow-lg">
           <div class="flex items-center justify-between">
             <span class="text-xs font-black uppercase tracking-wider text-red-200 bg-red-900/50 px-2.5 py-1 rounded-full border border-red-400/30">Pattern 03</span>
             <span class="text-xs font-bold text-red-400 flex items-center gap-1 animate-pulse"><i class="fa-solid fa-radiation"></i> 極めて危険</span>
           </div>
           <h3 class="text-lg font-extrabold mt-2 text-white group-hover:translate-x-1 transition-transform">フラッシュオーバー直前</h3>
-          <p class="text-xs text-white/80 mt-1 line-clamp-2">全層が高温化。上中下層全体が広範に黄色〜鮮烈な赤色に染まる状態。</p>
+          <p class="text-xs text-white/80 mt-1">全層が高温化。上中下層全体が広範に黄色〜鮮烈な赤色に染まる状態。</p>
         </button>
 
-        <!-- Pattern 4 -->
         <button onclick="launchThermal(4)" class="glass-card rounded-2xl p-4 text-left transition-all duration-200 active:scale-95 hover:bg-white/30 group relative overflow-hidden shadow-lg">
           <div class="flex items-center justify-between">
             <span class="text-xs font-black uppercase tracking-wider text-purple-200 bg-purple-900/50 px-2.5 py-1 rounded-full border border-purple-400/30">Pattern 04</span>
             <span class="text-xs font-bold text-purple-300 flex items-center gap-1"><i class="fa-solid fa-skull-crossbones"></i> バックドラフト徴候</span>
           </div>
           <h3 class="text-lg font-extrabold mt-2 text-white group-hover:translate-x-1 transition-transform">燻焼熱気（開口注意）</h3>
-          <p class="text-xs text-white/80 mt-1 line-clamp-2">中上層に未燃焼ガスの著しい高温蓄積（赤〜黄色）。開口による空気流入注意。</p>
+          <p class="text-xs text-white/80 mt-1">中上層に未燃焼ガスの著しい高温蓄積（赤〜黄色）。開口による空気流入注意。</p>
         </button>
-
       </div>
 
-      <!-- Custom Pattern View -->
+      <!-- Custom Pattern -->
       <div id="customTabContent" class="hidden flex-1 flex flex-col justify-center space-y-4 my-2 glass-card rounded-2xl p-4">
         <h3 class="text-sm font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-sliders text-cyan-300"></i> 各層温度マニュアル設定
@@ -165,7 +153,6 @@
     <!-- ==================== THERMAL VIEW SCREEN ==================== -->
     <div id="viewScreen" class="absolute inset-0 bg-slate-950 flex flex-col justify-between p-4 z-20 translate-x-full transition-transform duration-300 ease-out overflow-y-auto">
 
-      <!-- Top Navigation Bar -->
       <div class="flex items-center justify-between pb-3 border-b border-slate-800">
         <button onclick="closeThermal()" class="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:scale-95 text-xs font-bold text-white transition-all border border-slate-700">
           <i class="fa-solid fa-arrow-left text-cyan-400"></i> 戻る
@@ -182,49 +169,45 @@
         </button>
       </div>
 
-      <!-- TIC Monitor Frame (Three.js VR Screen) -->
+      <!-- TIC Monitor Frame -->
       <div class="my-3 flex-1 flex flex-col min-h-[380px]">
 
-        <div id="vrContainer" class="relative w-full flex-1 bg-black rounded-2xl overflow-hidden border-2 border-slate-700 shadow-2xl flex flex-col justify-center items-center">
+        <div id="vrContainer" class="relative w-full flex-1 bg-black rounded-2xl overflow-hidden border-2 border-slate-700 shadow-2xl">
 
-          <div id="statusMessage" class="absolute text-cyan-300 text-xs font-bold z-0 text-center">カメラ接続中...</div>
+          <div id="statusMessage" class="absolute inset-0 flex items-center justify-center px-4 text-cyan-300 text-xs font-bold z-10 text-center pointer-events-none">カメラ接続中...</div>
 
           <!-- HUD Overlay -->
-          <div class="absolute top-2 left-3 right-3 flex justify-between items-center text-[11px] font-mono font-bold text-amber-400 z-10 pointer-events-none drop-shadow">
+          <div class="absolute top-2 left-3 right-3 flex justify-between items-center text-[11px] font-mono font-bold text-amber-400 z-20 pointer-events-none drop-shadow">
             <span class="flex items-center gap-1"><i class="fa-solid fa-video text-red-500 animate-pulse"></i> VR LIVE</span>
             <span id="hudMaxTemp" class="bg-black/60 px-2 py-0.5 rounded border border-amber-500/30">MAX: ---°C</span>
           </div>
 
           <!-- Badges Overlay -->
-          <div class="absolute inset-x-0 inset-y-0 flex flex-col justify-between p-3 pointer-events-none z-10">
+          <div class="absolute inset-x-0 inset-y-0 flex flex-col justify-between p-3 pt-9 pointer-events-none z-20">
             <div class="flex justify-between items-start">
               <span class="text-[11px] font-bold bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md border border-red-500/40 text-red-300">上層 (天井)</span>
               <span id="badgeTopTemp" class="text-sm font-mono font-black bg-black/70 px-2 py-0.5 rounded text-red-400 border border-red-500/40">--°C</span>
             </div>
-
             <div class="flex justify-between items-center">
               <span class="text-[11px] font-bold bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md border border-amber-500/40 text-amber-300">中層 (目線)</span>
               <span id="badgeMidTemp" class="text-sm font-mono font-black bg-black/70 px-2 py-0.5 rounded text-amber-400 border border-amber-500/40">--°C</span>
             </div>
-
             <div class="flex justify-between items-end">
               <span class="text-[11px] font-bold bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md border border-gray-400/40 text-gray-300">下層 (床上)</span>
               <span id="badgeBotTemp" class="text-sm font-mono font-black bg-black/70 px-2 py-0.5 rounded text-gray-300 border border-gray-400/40">--°C</span>
             </div>
           </div>
-
         </div>
 
         <!-- Color Temperature Scale Bar -->
         <div class="mt-2 space-y-1">
           <div class="h-4 w-full rounded-lg overflow-hidden border border-slate-700 shadow-inner flex" id="gradientBar"></div>
           <div class="flex justify-between text-[10px] text-slate-300 font-mono px-1">
-            <span>低温 (20°C: 灰色)</span>
-            <span>中温 (250°C: 黄色)</span>
-            <span>高温 (600°C+: 赤色)</span>
+            <span>低温 (20°C)</span>
+            <span>中温 (250°C)</span>
+            <span>高温 (600°C+)</span>
           </div>
         </div>
-
       </div>
 
       <!-- Analysis & Tactics Card -->
@@ -233,9 +216,7 @@
           <span class="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
             <i class="fa-solid fa-magnifying-glass-chart"></i> 熱画像判読解析結果
           </span>
-          <span id="riskBadge" class="text-[10px] font-black px-2 py-0.5 rounded-full bg-red-900/60 text-red-300 border border-red-500/40">
-            DANGER
-          </span>
+          <span id="riskBadge" class="text-[10px] font-black px-2 py-0.5 rounded-full bg-red-900/60 text-red-300 border border-red-500/40">DANGER</span>
         </div>
 
         <p id="analysisText" class="text-xs leading-relaxed text-slate-200 font-medium">解析テキスト</p>
@@ -245,12 +226,9 @@
           <div id="tacticsList" class="text-xs text-slate-300 space-y-1"></div>
         </div>
       </div>
-
     </div>
-
   </div>
 
-  <!-- JavaScript Logic -->
   <script>
     const thermalPatterns = {
       1: {
@@ -293,123 +271,165 @@
 
     let currentData = thermalPatterns[1];
     let cameraStream = null;
-    let scene, camera, renderer, videoTexture, thermalMaterial;
+    let scene, camera, renderer, videoTexture, thermalMaterial, screenMesh;
     let paletteMode = 0;
 
-    // Three.js VR 3D環境の初期化
-    function initThreeVR() {
-      const container = document.getElementById('vrContainer');
-      const w = container.clientWidth || 320;
-      const h = container.clientHeight || 380;
-
-      scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(70, w / h, 0.1, 1000);
-
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-      renderer.setSize(w, h);
-      container.appendChild(renderer.domElement);
-
-      const video = document.getElementById('cameraVideo');
-      videoTexture = new THREE.VideoTexture(video);
-
-      // 高さ座標（Y座標）連動 サーモグラフィーGLSLシェーダー
-      thermalMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-          tDiffuse: { value: videoTexture },
-          uTopTemp: { value: currentData.topTemp },
-          uMidTemp: { value: currentData.midTemp },
-          uBotTemp: { value: currentData.botTemp },
-          uPaletteMode: { value: 0 }
-        },
-        vertexShader: `
-          varying vec2 vUv;
-          void main() {
-            vUv = uv;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          }
-        `,
-        fragmentShader: `
-          uniform sampler2D tDiffuse;
-          uniform float uTopTemp;
-          uniform float uMidTemp;
-          uniform float uBotTemp;
-          uniform int uPaletteMode;
-          varying vec2 vUv;
-
-          vec3 tempToColor(float temp) {
-            float norm = clamp((temp - 20.0) / 630.0, 0.0, 1.0);
-            if (uPaletteMode == 0) {
-              if (norm < 0.4) {
-                float t = norm / 0.4;
-                return vec3((110.0 + t * 145.0)/255.0, (110.0 + t * 110.0)/255.0, (110.0 * (1.0 - t))/255.0);
-              } else {
-                float t = (norm - 0.4) / 0.6;
-                return vec3((255.0 - t * 25.0)/255.0, (220.0 * (1.0 - t))/255.0, 0.0);
-              }
-            } else if (uPaletteMode == 1) {
-              return vec3(norm, norm * 0.5, 1.0 - norm);
-            } else {
-              return vec3(norm);
-            }
-          }
-
-          void main() {
-            vec4 color = texture2D(tDiffuse, vUv);
-            float luma = dot(color.rgb, vec3(0.299, 0.587, 0.114));
-
-            // 縦座標Y方向（上層・中層・下層）の自然なグラデーション温度補間
-            float ny = 1.0 - vUv.y;
-            float baseTemp;
-            if (ny <= 0.5) {
-              float t = ny / 0.5;
-              float smoothT = t * t * (3.0 - 2.0 * t);
-              baseTemp = mix(uTopTemp, uMidTemp, smoothT);
-            } else {
-              float t = (ny - 0.5) / 0.5;
-              float smoothT = t * t * (3.0 - 2.0 * t);
-              baseTemp = mix(uMidTemp, uBotTemp, smoothT);
-            }
-
-            float pixelTemp = max(15.0, baseTemp * (0.6 + luma * 0.8));
-            gl_FragColor = vec4(tempToColor(pixelTemp), 1.0);
-          }
-        `,
-        side: THREE.DoubleSide
-      });
-
-      const geometry = new THREE.PlaneGeometry(3.2, 2.0);
-      const screenMesh = new THREE.Mesh(geometry, thermalMaterial);
-      screenMesh.position.set(0, 0, -2);
-      scene.add(screenMesh);
-
-      function animate() {
-        requestAnimationFrame(animate);
-        if (renderer && scene && camera) {
-          renderer.render(scene, camera);
-        }
-      }
-      animate();
+    function showStatus(msg) {
+      const el = document.getElementById('statusMessage');
+      if (!el) return;
+      el.innerText = msg;
+      el.style.display = "flex";
+    }
+    function hideStatus() {
+      const el = document.getElementById('statusMessage');
+      if (el) el.style.display = "none";
     }
 
+    // Three.js 初期化（表示後に呼ぶ）
+    function initThreeVR() {
+      if (renderer) { resizeVR(); return true; }
+      if (typeof THREE === 'undefined') {
+        showStatus("Three.js の読み込みに失敗しました。ネットワークを確認してください。");
+        return false;
+      }
+      try {
+        const container = document.getElementById('vrContainer');
+        const w = container.clientWidth || 320;
+        const h = container.clientHeight || 380;
+
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(70, w / h, 0.1, 1000);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.setSize(w, h);
+        container.insertBefore(renderer.domElement, container.firstChild);
+
+        const video = document.getElementById('cameraVideo');
+        videoTexture = new THREE.VideoTexture(video);
+        videoTexture.minFilter = THREE.LinearFilter;
+        videoTexture.magFilter = THREE.LinearFilter;
+
+        thermalMaterial = new THREE.ShaderMaterial({
+          uniforms: {
+            tDiffuse: { value: videoTexture },
+            uTopTemp: { value: currentData.topTemp },
+            uMidTemp: { value: currentData.midTemp },
+            uBotTemp: { value: currentData.botTemp },
+            uPaletteMode: { value: 0 }
+          },
+          vertexShader: `
+            varying vec2 vUv;
+            void main() {
+              vUv = uv;
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+          `,
+          fragmentShader: `
+            precision mediump float;
+            uniform sampler2D tDiffuse;
+            uniform float uTopTemp;
+            uniform float uMidTemp;
+            uniform float uBotTemp;
+            uniform int uPaletteMode;
+            varying vec2 vUv;
+
+            vec3 tempToColor(float temp) {
+              float norm = clamp((temp - 20.0) / 630.0, 0.0, 1.0);
+              if (uPaletteMode == 0) {
+                if (norm < 0.4) {
+                  float t = norm / 0.4;
+                  return vec3((110.0 + t * 145.0)/255.0, (110.0 + t * 110.0)/255.0, (110.0 * (1.0 - t))/255.0);
+                } else {
+                  float t = (norm - 0.4) / 0.6;
+                  return vec3((255.0 - t * 25.0)/255.0, (220.0 * (1.0 - t))/255.0, 0.0);
+                }
+              } else if (uPaletteMode == 1) {
+                return vec3(norm, norm * 0.5, 1.0 - norm);
+              } else {
+                return vec3(norm);
+              }
+            }
+
+            void main() {
+              vec4 color = texture2D(tDiffuse, vUv);
+              float luma = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+
+              float ny = 1.0 - vUv.y;
+              float baseTemp;
+              if (ny <= 0.5) {
+                float t = ny / 0.5;
+                float smoothT = t * t * (3.0 - 2.0 * t);
+                baseTemp = mix(uTopTemp, uMidTemp, smoothT);
+              } else {
+                float t = (ny - 0.5) / 0.5;
+                float smoothT = t * t * (3.0 - 2.0 * t);
+                baseTemp = mix(uMidTemp, uBotTemp, smoothT);
+              }
+
+              float pixelTemp = max(15.0, baseTemp * (0.6 + luma * 0.8));
+              gl_FragColor = vec4(tempToColor(pixelTemp), 1.0);
+            }
+          `,
+          side: THREE.DoubleSide
+        });
+
+        screenMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), thermalMaterial);
+        screenMesh.position.set(0, 0, -2);
+        scene.add(screenMesh);
+
+        resizeVR();
+
+        (function animate() {
+          requestAnimationFrame(animate);
+          renderer.render(scene, camera);
+        })();
+        return true;
+      } catch (e) {
+        console.error(e);
+        showStatus("WebGLの初期化に失敗しました。");
+        renderer = null;
+        return false;
+      }
+    }
+
+    // コンテナサイズに合わせて画面いっぱいに表示
+    function resizeVR() {
+      if (!renderer) return;
+      const container = document.getElementById('vrContainer');
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (!w || !h) return;
+      renderer.setSize(w, h);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      const dist = 2;
+      const visH = 2 * dist * Math.tan((camera.fov * Math.PI / 180) / 2);
+      screenMesh.scale.set(visH * camera.aspect, visH, 1);
+    }
+    window.addEventListener('resize', resizeVR);
+
     async function startCamera() {
-      const statusMsg = document.getElementById('statusMessage');
-      if (!cameraStream) {
-        try {
-          if (statusMsg) statusMsg.innerText = "カメラ接続中...";
-          cameraStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: "environment" } },
-            audio: false
-          });
-          const video = document.getElementById('cameraVideo');
-          video.srcObject = cameraStream;
-          await video.play();
-          if (statusMsg) statusMsg.style.display = "none";
-        } catch (err) {
-          console.error(err);
-          if (statusMsg) statusMsg.innerText = "カメラのアクセスに失敗しました。";
-        }
-      } else {
-        if (statusMsg) statusMsg.style.display = "none";
+      if (cameraStream) { hideStatus(); return true; }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showStatus("この環境ではカメラを使用できません（HTTPS接続が必要です）。");
+        return false;
+      }
+      try {
+        showStatus("カメラ接続中...");
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false
+        });
+        const video = document.getElementById('cameraVideo');
+        video.srcObject = cameraStream;
+        await video.play();
+        hideStatus();
+        return true;
+      } catch (err) {
+        console.error(err);
+        showStatus("カメラのアクセスに失敗しました。ブラウザの設定でカメラを許可してください。");
+        return false;
       }
     }
 
@@ -429,14 +449,20 @@
       }
     }
 
-    function launchThermal(patternId) {
-      currentData = thermalPatterns[patternId];
+    // 画面を開く共通処理：表示 → サイズ確定後にThree初期化 → カメラ開始
+    function openViewScreen() {
       updateViewUI();
       document.getElementById('viewScreen').classList.remove('translate-x-full');
-      startCamera().then(() => {
-        if (!renderer) initThreeVR();
+      setTimeout(() => {
+        initThreeVR();
         updateUniforms();
-      });
+        startCamera();
+      }, 350);
+    }
+
+    function launchThermal(patternId) {
+      currentData = thermalPatterns[patternId];
+      openViewScreen();
     }
 
     function launchCustomThermal() {
@@ -453,13 +479,7 @@
         analysis: "ユーザー定義の温度分布です。自然に変化する熱階層のグラデーション（灰色→黄色→赤色）を観察してください。",
         tactics: ["・上層（赤色）と中層（黄色）の境目の降下速度に注意"]
       };
-
-      updateViewUI();
-      document.getElementById('viewScreen').classList.remove('translate-x-full');
-      startCamera().then(() => {
-        if (!renderer) initThreeVR();
-        updateUniforms();
-      });
+      openViewScreen();
     }
 
     function closeThermal() {
@@ -476,17 +496,13 @@
     }
 
     function switchHomeTab(tab) {
-      if (tab === 'preset') {
-        document.getElementById('tabPresetBtn').className = "flex-1 py-2 text-xs font-bold rounded-lg bg-white/30 shadow text-white transition-all";
-        document.getElementById('tabCustomBtn').className = "flex-1 py-2 text-xs font-bold rounded-lg text-white/70 hover:text-white transition-all";
-        document.getElementById('presetTabContent').classList.remove('hidden');
-        document.getElementById('customTabContent').classList.add('hidden');
-      } else {
-        document.getElementById('tabCustomBtn').className = "flex-1 py-2 text-xs font-bold rounded-lg bg-white/30 shadow text-white transition-all";
-        document.getElementById('tabPresetBtn').className = "flex-1 py-2 text-xs font-bold rounded-lg text-white/70 hover:text-white transition-all";
-        document.getElementById('customTabContent').classList.remove('hidden');
-        document.getElementById('presetTabContent').classList.add('hidden');
-      }
+      const on = "flex-1 py-2 text-xs font-bold rounded-lg bg-white/30 shadow text-white transition-all";
+      const off = "flex-1 py-2 text-xs font-bold rounded-lg text-white/70 hover:text-white transition-all";
+      const isPreset = tab === 'preset';
+      document.getElementById('tabPresetBtn').className = isPreset ? on : off;
+      document.getElementById('tabCustomBtn').className = isPreset ? off : on;
+      document.getElementById('presetTabContent').classList.toggle('hidden', !isPreset);
+      document.getElementById('customTabContent').classList.toggle('hidden', isPreset);
     }
 
     function updateCustomSliders() {
