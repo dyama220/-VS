@@ -199,6 +199,15 @@
           </div>
         </div>
 
+        <!-- 視線角度（VR連動） -->
+        <div class="mt-2 flex items-center gap-2">
+          <button id="sensorBtn" onclick="requestSensor()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-[10px] font-bold text-cyan-300 active:scale-95 whitespace-nowrap">
+            <i class="fa-solid fa-satellite-dish"></i> VR連動: OFF
+          </button>
+          <input type="range" id="pitchSlider" min="-60" max="60" value="0" oninput="manualPitch(this.value)" class="flex-1 accent-cyan-400 h-2 bg-black/40 rounded-lg cursor-pointer">
+          <span id="pitchVal" class="text-[10px] font-mono text-cyan-200 w-14 text-right">視線 0°</span>
+        </div>
+
         <!-- Color Temperature Scale Bar -->
         <div class="mt-2 space-y-1">
           <div class="h-4 w-full rounded-lg overflow-hidden border border-slate-700 shadow-inner flex" id="gradientBar"></div>
@@ -273,6 +282,55 @@
     let cameraStream = null;
     let scene, camera, renderer, videoTexture, thermalMaterial, screenMesh;
     let paletteMode = 0;
+    let targetPitch = 0, currentPitch = 0, sensorOn = false;
+
+    function updatePitchUI() {
+      const r = Math.round(currentPitch);
+      document.getElementById('pitchSlider').value = Math.max(-60, Math.min(60, r));
+      document.getElementById('pitchVal').innerText = "視線 " + (r > 0 ? "+" : "") + r + "°";
+    }
+
+    function setSensorUI(on) {
+      sensorOn = on;
+      document.getElementById('sensorBtn').innerHTML =
+        '<i class="fa-solid fa-satellite-dish"></i> VR連動: ' + (on ? 'ON' : 'OFF');
+    }
+
+    // beta: 端末を縦に立てた状態で90°。上を向くと90°より大きく、下を向くと小さくなる
+    function onOrient(e) {
+      if (e.beta == null) return;
+      targetPitch = Math.max(-90, Math.min(90, e.beta - 90));
+      if (!sensorOn) setSensorUI(true);
+    }
+
+    // iOSはユーザー操作内での許可リクエストが必須
+    async function requestSensor() {
+      try {
+        if (typeof DeviceOrientationEvent !== 'undefined' &&
+            typeof DeviceOrientationEvent.requestPermission === 'function') {
+          const r = await DeviceOrientationEvent.requestPermission();
+          if (r !== 'granted') { setSensorUI(false); return; }
+        }
+        window.removeEventListener('deviceorientation', onOrient);
+        window.addEventListener('deviceorientation', onOrient);
+      } catch (err) {
+        console.error(err);
+        setSensorUI(false);
+      }
+    }
+
+    function stopSensor() {
+      window.removeEventListener('deviceorientation', onOrient);
+      setSensorUI(false);
+    }
+
+    // スライダーで手動操作（PC確認用）。操作するとセンサー連動は停止
+    function manualPitch(v) {
+      stopSensor();
+      targetPitch = parseFloat(v);
+      currentPitch = targetPitch;
+      updatePitchUI();
+    }
 
     function showStatus(msg) {
       const el = document.getElementById('statusMessage');
@@ -316,7 +374,10 @@
             uTopTemp: { value: currentData.topTemp },
             uMidTemp: { value: currentData.midTemp },
             uBotTemp: { value: currentData.botTemp },
-            uPaletteMode: { value: 0 }
+            uPaletteMode: { value: 0 },
+            uPitch: { value: 0 },
+            uVFov: { value: 70 * Math.PI / 180 },
+            uRange: { value: 50 * Math.PI / 180 }
           },
           vertexShader: `
             varying vec2 vUv;
@@ -332,6 +393,9 @@
             uniform float uMidTemp;
             uniform float uBotTemp;
             uniform int uPaletteMode;
+            uniform float uPitch;
+            uniform float uVFov;
+            uniform float uRange;
             varying vec2 vUv;
 
             vec3 tempToColor(float temp) {
@@ -355,16 +419,14 @@
               vec4 color = texture2D(tDiffuse, vUv);
               float luma = dot(color.rgb, vec3(0.299, 0.587, 0.114));
 
-              float ny = 1.0 - vUv.y;
+              // 画素ごとの「実世界の仰角」= 端末の仰角 + 画面内の位置
+              float elev = uPitch + (0.5 - vUv.y) * uVFov;
+              float h = clamp(elev / uRange, -1.0, 1.0); // -1:床 0:目線 +1:天井
               float baseTemp;
-              if (ny <= 0.5) {
-                float t = ny / 0.5;
-                float smoothT = t * t * (3.0 - 2.0 * t);
-                baseTemp = mix(uTopTemp, uMidTemp, smoothT);
+              if (h >= 0.0) {
+                baseTemp = mix(uMidTemp, uTopTemp, smoothstep(0.0, 1.0, h));
               } else {
-                float t = (ny - 0.5) / 0.5;
-                float smoothT = t * t * (3.0 - 2.0 * t);
-                baseTemp = mix(uMidTemp, uBotTemp, smoothT);
+                baseTemp = mix(uMidTemp, uBotTemp, smoothstep(0.0, 1.0, -h));
               }
 
               float pixelTemp = max(15.0, baseTemp * (0.6 + luma * 0.8));
@@ -382,6 +444,9 @@
 
         (function animate() {
           requestAnimationFrame(animate);
+          currentPitch += (targetPitch - currentPitch) * 0.2;
+          thermalMaterial.uniforms.uPitch.value = currentPitch * Math.PI / 180;
+          if (sensorOn) updatePitchUI();
           renderer.render(scene, camera);
         })();
         return true;
@@ -451,6 +516,7 @@
 
     // 画面を開く共通処理：表示 → サイズ確定後にThree初期化 → カメラ開始
     function openViewScreen() {
+      requestSensor(); // タップ操作の直後に呼ぶ（iOS対策）
       updateViewUI();
       document.getElementById('viewScreen').classList.remove('translate-x-full');
       setTimeout(() => {
@@ -485,6 +551,7 @@
     function closeThermal() {
       document.getElementById('viewScreen').classList.add('translate-x-full');
       stopCamera();
+      stopSensor();
     }
 
     function togglePalette() {
