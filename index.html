@@ -11,15 +11,8 @@
   <!-- Font Awesome Icons -->
   <link rel="stylesheet" href="<https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css>">
 
-  <!-- Three.js & WebXR Import Map -->
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "<https://unpkg.com/three@0.160.0/build/three.module.js>",
-        "three/addons/": "<https://unpkg.com/three@0.160.0/examples/jsm/>"
-      }
-    }
-  </script>
+  <!-- Three.js (標準スクリプト読み込みでボタン動作を確実に保証) -->
+  <script src="[suspicious link removed]"></script>
 
   <style>
     @keyframes cyanMagentaShift {
@@ -34,7 +27,6 @@
       animation: cyanMagentaShift 12s ease infinite;
     }
 
-    /* Glassmorphism effect */
     .glass-card {
       background: rgba(255, 255, 255, 0.18);
       backdrop-filter: blur(16px);
@@ -49,12 +41,10 @@
       border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
-    /* Touch optimization */
     button, input, select {
       touch-action: manipulation;
     }
 
-    /* Custom Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); }
     ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 3px; }
@@ -63,7 +53,7 @@
 <body class="bg-animated-cyan-magenta min-h-screen text-white font-sans antialiased flex justify-center items-center select-none overflow-x-hidden">
 
   <!-- カメラ入力用の隠しvideo要素 -->
-  <video id="cameraVideo" autoplay playsinline class="hidden"></video>
+  <video id="cameraVideo" autoplay playsinline style="display:none;"></video>
 
   <!-- App Container -->
   <div class="w-full max-w-md h-screen md:h-[880px] md:max-h-[95vh] md:rounded-3xl shadow-2xl relative overflow-hidden flex flex-col bg-slate-950/40 border border-white/20">
@@ -97,10 +87,6 @@
           </div>
           <h3 class="text-lg font-extrabold mt-2 text-white group-hover:translate-x-1 transition-transform">初期火災（天井熱気流）</h3>
           <p class="text-xs text-white/80 mt-1 line-clamp-2">上層部のみにわずかな熱蓄積。中層・下層は低温（灰色）を保持。</p>
-          <div class="mt-3 flex items-center gap-1.5">
-            <div class="h-2 rounded-full flex-1 bg-gradient-to-r from-gray-500 via-amber-400 to-red-600"></div>
-            <i class="fa-solid fa-chevron-right text-xs text-white/60"></i>
-          </div>
         </button>
 
         <!-- Pattern 2 -->
@@ -111,10 +97,6 @@
           </div>
           <h3 class="text-lg font-extrabold mt-2 text-white group-hover:translate-x-1 transition-transform">熱気流降下（中層加熱）</h3>
           <p class="text-xs text-white/80 mt-1 line-clamp-2">上層が高温化（赤色）。熱気流が中層（黄色）へ降下を始め、活動視界低下。</p>
-          <div class="mt-3 flex items-center gap-1.5">
-            <div class="h-2 rounded-full flex-1 bg-gradient-to-r from-gray-500 via-yellow-400 to-red-600"></div>
-            <i class="fa-solid fa-chevron-right text-xs text-white/60"></i>
-          </div>
         </button>
 
         <!-- Pattern 3 -->
@@ -125,10 +107,6 @@
           </div>
           <h3 class="text-lg font-extrabold mt-2 text-white group-hover:translate-x-1 transition-transform">フラッシュオーバー直前</h3>
           <p class="text-xs text-white/80 mt-1 line-clamp-2">全層が高温化。上中下層全体が広範に黄色〜鮮烈な赤色に染まる状態。</p>
-          <div class="mt-3 flex items-center gap-1.5">
-            <div class="h-2 rounded-full flex-1 bg-gradient-to-r from-amber-400 via-red-500 to-red-700"></div>
-            <i class="fa-solid fa-chevron-right text-xs text-white/60"></i>
-          </div>
         </button>
 
         <!-- Pattern 4 -->
@@ -139,15 +117,11 @@
           </div>
           <h3 class="text-lg font-extrabold mt-2 text-white group-hover:translate-x-1 transition-transform">燻焼熱気（開口注意）</h3>
           <p class="text-xs text-white/80 mt-1 line-clamp-2">中上層に未燃焼ガスの著しい高温蓄積（赤〜黄色）。開口による空気流入注意。</p>
-          <div class="mt-3 flex items-center gap-1.5">
-            <div class="h-2 rounded-full flex-1 bg-gradient-to-r from-gray-500 via-yellow-500 to-red-600"></div>
-            <i class="fa-solid fa-chevron-right text-xs text-white/60"></i>
-          </div>
         </button>
 
       </div>
 
-      <!-- Custom Pattern View (Hidden by default) -->
+      <!-- Custom Pattern View -->
       <div id="customTabContent" class="hidden flex-1 flex flex-col justify-center space-y-4 my-2 glass-card rounded-2xl p-4">
         <h3 class="text-sm font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-sliders text-cyan-300"></i> 各層温度マニュアル設定
@@ -208,10 +182,12 @@
         </button>
       </div>
 
-      <!-- TIC Monitor Frame (Three.js WebGL/WebXR Canvas Container) -->
+      <!-- TIC Monitor Frame (Three.js VR Screen) -->
       <div class="my-3 flex-1 flex flex-col min-h-[380px]">
 
-        <div id="vrContainer" class="relative w-full flex-1 bg-black rounded-2xl overflow-hidden border-2 border-slate-700 shadow-2xl flex flex-col">
+        <div id="vrContainer" class="relative w-full flex-1 bg-black rounded-2xl overflow-hidden border-2 border-slate-700 shadow-2xl flex flex-col justify-center items-center">
+
+          <div id="statusMessage" class="absolute text-cyan-300 text-xs font-bold z-0 text-center">カメラ接続中...</div>
 
           <!-- HUD Overlay -->
           <div class="absolute top-2 left-3 right-3 flex justify-between items-center text-[11px] font-mono font-bold text-amber-400 z-10 pointer-events-none drop-shadow">
@@ -274,11 +250,8 @@
 
   </div>
 
-  <!-- Three.js + WebXR Logic Module -->
-  <script type="module">
-    import * as THREE from 'three';
-    import { VRButton } from 'three/addons/webxr/VRButton.js';
-
+  <!-- JavaScript Logic -->
+  <script>
     const thermalPatterns = {
       1: {
         title: "パターン 01：初期火災",
@@ -320,7 +293,7 @@
 
     let currentData = thermalPatterns[1];
     let cameraStream = null;
-    let scene, camera, renderer, videoTexture, thermalMaterial, vrButtonElement;
+    let scene, camera, renderer, videoTexture, thermalMaterial;
     let paletteMode = 0;
 
     // Three.js VR 3D環境の初期化
@@ -334,21 +307,10 @@
 
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setSize(w, h);
-      renderer.xr.enabled = true;
       container.appendChild(renderer.domElement);
-
-      // VR Buttonの設置
-      vrButtonElement = VRButton.createButton(renderer);
-      vrButtonElement.style.position = 'absolute';
-      vrButtonElement.style.bottom = '10px';
-      vrButtonElement.style.left = '50%';
-      vrButtonElement.style.transform = 'translateX(-50%)';
-      vrButtonElement.style.zIndex = '30';
-      container.appendChild(vrButtonElement);
 
       const video = document.getElementById('cameraVideo');
       videoTexture = new THREE.VideoTexture(video);
-      videoTexture.colorSpace = THREE.SRGBColorSpace;
 
       // 高さ座標（Y座標）連動 サーモグラフィーGLSLシェーダー
       thermalMaterial = new THREE.ShaderMaterial({
@@ -361,12 +323,9 @@
         },
         vertexShader: `
           varying vec2 vUv;
-          varying vec3 vWorldPosition;
           void main() {
             vUv = uv;
-            vec4 worldPos = modelMatrix * vec4(position, 1.0);
-            vWorldPosition = worldPos.xyz;
-            gl_Position = projectionMatrix * viewMatrix * worldPos;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
           }
         `,
         fragmentShader: `
@@ -376,7 +335,6 @@
           uniform float uBotTemp;
           uniform int uPaletteMode;
           varying vec2 vUv;
-          varying vec3 vWorldPosition;
 
           vec3 tempToColor(float temp) {
             float norm = clamp((temp - 20.0) / 630.0, 0.0, 1.0);
@@ -399,7 +357,7 @@
             vec4 color = texture2D(tDiffuse, vUv);
             float luma = dot(color.rgb, vec3(0.299, 0.587, 0.114));
 
-            // 縦座標Y方向（上層・中層・下層）の温度補間
+            // 縦座標Y方向（上層・中層・下層）の自然なグラデーション温度補間
             float ny = 1.0 - vUv.y;
             float baseTemp;
             if (ny <= 0.5) {
@@ -421,26 +379,37 @@
 
       const geometry = new THREE.PlaneGeometry(3.2, 2.0);
       const screenMesh = new THREE.Mesh(geometry, thermalMaterial);
-      screenMesh.position.set(0, 1.5, -2);
+      screenMesh.position.set(0, 0, -2);
       scene.add(screenMesh);
 
-      renderer.setAnimationLoop(() => {
-        renderer.render(scene, camera);
-      });
+      function animate() {
+        requestAnimationFrame(animate);
+        if (renderer && scene && camera) {
+          renderer.render(scene, camera);
+        }
+      }
+      animate();
     }
 
-    async function initCamera() {
+    async function startCamera() {
+      const statusMsg = document.getElementById('statusMessage');
       if (!cameraStream) {
         try {
-          const constraints = { video: { facingMode: { ideal: "environment" }, width: { ideal: 640 }, height: { ideal: 480 } } };
-          cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+          if (statusMsg) statusMsg.innerText = "カメラ接続中...";
+          cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "environment" } },
+            audio: false
+          });
           const video = document.getElementById('cameraVideo');
           video.srcObject = cameraStream;
           await video.play();
+          if (statusMsg) statusMsg.style.display = "none";
         } catch (err) {
-          console.error("Camera Error:", err);
-          alert("カメラの許可が必要です。");
+          console.error(err);
+          if (statusMsg) statusMsg.innerText = "カメラのアクセスに失敗しました。";
         }
+      } else {
+        if (statusMsg) statusMsg.style.display = "none";
       }
     }
 
@@ -460,17 +429,17 @@
       }
     }
 
-    // グローバルウィンドウオブジェクトに関数をバインド（onclickエラー回避）
-    window.launchThermal = async function(patternId) {
+    function launchThermal(patternId) {
       currentData = thermalPatterns[patternId];
       updateViewUI();
       document.getElementById('viewScreen').classList.remove('translate-x-full');
-      await initCamera();
-      if (!renderer) initThreeVR();
-      updateUniforms();
-    };
+      startCamera().then(() => {
+        if (!renderer) initThreeVR();
+        updateUniforms();
+      });
+    }
 
-    window.launchCustomThermal = async function() {
+    function launchCustomThermal() {
       const top = parseInt(document.getElementById('sliderTop').value);
       const mid = parseInt(document.getElementById('sliderMid').value);
       const bot = parseInt(document.getElementById('sliderBot').value);
@@ -487,25 +456,26 @@
 
       updateViewUI();
       document.getElementById('viewScreen').classList.remove('translate-x-full');
-      await initCamera();
-      if (!renderer) initThreeVR();
-      updateUniforms();
-    };
+      startCamera().then(() => {
+        if (!renderer) initThreeVR();
+        updateUniforms();
+      });
+    }
 
-    window.closeThermal = function() {
+    function closeThermal() {
       document.getElementById('viewScreen').classList.add('translate-x-full');
       stopCamera();
-    };
+    }
 
-    window.togglePalette = function() {
+    function togglePalette() {
       paletteMode = (paletteMode + 1) % 3;
       const labels = ["Gray-Yellow-Red", "Ironbow", "Grayscale"];
       document.getElementById('paletteLabel').innerText = labels[paletteMode];
       updateUniforms();
       renderGradientLegendBar();
-    };
+    }
 
-    window.switchHomeTab = function(tab) {
+    function switchHomeTab(tab) {
       if (tab === 'preset') {
         document.getElementById('tabPresetBtn').className = "flex-1 py-2 text-xs font-bold rounded-lg bg-white/30 shadow text-white transition-all";
         document.getElementById('tabCustomBtn').className = "flex-1 py-2 text-xs font-bold rounded-lg text-white/70 hover:text-white transition-all";
@@ -517,13 +487,13 @@
         document.getElementById('customTabContent').classList.remove('hidden');
         document.getElementById('presetTabContent').classList.add('hidden');
       }
-    };
+    }
 
-    window.updateCustomSliders = function() {
+    function updateCustomSliders() {
       document.getElementById('customTopVal').innerText = document.getElementById('sliderTop').value + "°C";
       document.getElementById('customMidVal').innerText = document.getElementById('sliderMid').value + "°C";
       document.getElementById('customBotVal').innerText = document.getElementById('sliderBot').value + "°C";
-    };
+    }
 
     function updateViewUI() {
       document.getElementById('viewTitle').innerText = currentData.title;
@@ -545,6 +515,7 @@
 
     function renderGradientLegendBar() {
       const bar = document.getElementById('gradientBar');
+      if (!bar) return;
       bar.innerHTML = '';
       const steps = 30;
       for (let i = 0; i < steps; i++) {
