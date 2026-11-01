@@ -8,7 +8,7 @@
   <!-- Font Awesome Icons -->
   <link rel="stylesheet" href="<https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css>">
 
-  <!-- Three.js (従来の安定したスクリプト読み込み) -->
+  <!-- Three.js (3D/VRレンダラー) -->
   <script src="[suspicious link removed]"></script>
 
   <style>
@@ -50,17 +50,6 @@
 
     .glass-card:active { transform: scale(0.97); background: rgba(255, 255, 255, 0.25); }
 
-    .btn-primary {
-      background: linear-gradient(135deg, #00f2fe, #4facfe);
-      border: none;
-      color: #fff;
-      font-weight: bold;
-      padding: 12px;
-      border-radius: 12px;
-      width: 100%;
-      cursor: pointer;
-    }
-
     .screen-panel {
       position: absolute;
       inset: 0;
@@ -75,7 +64,7 @@
 
     .hidden-screen { transform: translateX(100%); pointer-events: none; }
 
-    #vrContainer {
+    #canvasContainer {
       width: 100%;
       height: 360px;
       background: #000;
@@ -83,14 +72,25 @@
       position: relative;
       overflow: hidden;
       border: 2px solid rgba(255, 255, 255, 0.2);
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
 
-    input[type=range] { width: 100%; margin: 8px 0; }
+    #statusMessage {
+      position: absolute;
+      color: #00f2fe;
+      font-size: 0.8rem;
+      font-weight: bold;
+      z-index: 5;
+      text-align: center;
+      padding: 10px;
+    }
   </style>
 </head>
 <body>
 
-  <!-- カメラ用隠しビデオ -->
+  <!-- カメラ用隠しビデオ要素 -->
   <video id="cameraVideo" autoplay playsinline style="display:none;"></video>
 
   <div class="app-container">
@@ -130,28 +130,26 @@
         </div>
       </div>
 
-      <p style="font-size: 0.7rem; color: #888; text-align: center;">※ Safari / Chrome ブラウザでカメラ利用を許可してください。</p>
+      <p style="font-size: 0.71rem; color: #888; text-align: center;">※ Safari / Chrome 等の標準ブラウザで開いてご利用ください。</p>
     </div>
 
     <!-- ==================== VIEW SCREEN ==================== -->
     <div id="viewScreen" class="screen-panel hidden-screen">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <button onclick="closeThermal()" style="background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 6px 12px; border-radius: 8px; cursor: pointer;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <button onclick="closeThermal()" style="background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: bold;">
           <i class="fa-solid fa-arrow-left"></i> 戻る
         </button>
         <span id="viewTitle" style="font-weight: bold; font-size: 0.9rem;">パターンタイトル</span>
       </div>
 
       <!-- 3D VR モニター画面 -->
-      <div id="vrContainer">
-        <div style="position: absolute; top: 10px; left: 10px; font-size: 0.8rem; color: #ffcc00; font-family: monospace; z-index: 5;">
-          <i class="fa-solid fa-video"></i> VR LIVE
-        </div>
+      <div id="canvasContainer">
+        <div id="statusMessage">カメラ準備中...</div>
       </div>
 
       <!-- 解析テキスト -->
-      <div style="background: rgba(0,0,0,0.5); padding: 12px; border-radius: 12px; font-size: 0.8rem; line-height: 1.5;">
-        <div style="color: #00f2fe; font-weight: bold; margin-bottom: 4px;">【熱画像判定結果】</div>
+      <div style="background: rgba(0,0,0,0.6); padding: 14px; border-radius: 12px; font-size: 0.85rem; line-height: 1.5; border: 1px solid rgba(255,255,255,0.1); margin-top: 10px;">
+        <div style="color: #00f2fe; font-weight: bold; margin-bottom: 6px;"><i class="fa-solid fa-magnifying-glass-chart"></i> 熱画像判定結果</div>
         <div id="analysisText">----</div>
       </div>
     </div>
@@ -160,30 +158,35 @@
 
   <script>
     const thermalData = {
-      1: { title: "初期火災（天井熱気流）", top: 220, mid: 45, bot: 22, desc: "天井付近に薄い熱蓄積が見られますが、下層は低温を保っています。" },
-      2: { title: "熱気流降下（中層加熱）", top: 480, mid: 240, bot: 50, desc: "上層部が著しく高温化。熱気流が目線付近まで降下しています。" },
-      3: { title: "フラッシュオーバー直前", top: 660, mid: 510, bot: 280, desc: "室内全体が超高温域に達しており、極めて危険な状態です。" }
+      1: { title: "初期火災（天井熱気流）", top: 220, mid: 45, bot: 22, desc: "天井付近（上層）に薄い熱蓄積が見られますが、中層・下層は正常温度（灰色）を保っています。" },
+      2: { title: "熱気流降下（中層加熱）", top: 480, mid: 240, bot: 50, desc: "上層部が著しく高温化（赤色）。熱気流が中層（黄色）へ降下してきています。" },
+      3: { title: "フラッシュオーバー直前", top: 660, mid: 510, bot: 280, desc: "室内全体が超高温域に達しており、フラッシュオーバーが切迫している極めて危険な状態です。" }
     };
 
     let scene, camera, renderer, videoTexture, material;
     let cameraStream = null;
 
     function initThree() {
-      const container = document.getElementById('vrContainer');
+      const container = document.getElementById('canvasContainer');
       const w = container.clientWidth;
       const h = container.clientHeight;
+
+      if (typeof THREE === 'undefined') {
+        document.getElementById('statusMessage').innerText = "3Dライブラリの読み込みに失敗しました。";
+        return;
+      }
 
       scene = new THREE.Scene();
       camera = new THREE.PerspectiveCamera(70, w / h, 0.1, 1000);
 
-      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setSize(w, h);
       container.appendChild(renderer.domElement);
 
       const video = document.getElementById('cameraVideo');
       videoTexture = new THREE.VideoTexture(video);
 
-      // カスタムシェーダー（熱画像変換）
+      // サーモグラフィーGLSLシェーダー
       material = new THREE.ShaderMaterial({
         uniforms: {
           tDiffuse: { value: videoTexture },
@@ -210,10 +213,21 @@
             float luma = dot(col.rgb, vec3(0.299, 0.587, 0.114));
 
             float ny = 1.0 - vUv.y;
-            float temp = mix(uTopTemp, uBotTemp, ny) * (0.6 + luma * 0.8);
+            float temp;
+            if (ny <= 0.5) {
+              temp = mix(uTopTemp, uMidTemp, ny * 2.0);
+            } else {
+              temp = mix(uMidTemp, uBotTemp, (ny - 0.5) * 2.0);
+            }
+            temp = temp * (0.6 + luma * 0.8);
 
             float norm = clamp((temp - 20.0) / 600.0, 0.0, 1.0);
-            vec3 finalCol = vec3(norm, norm * 0.3, 1.0 - norm);
+            vec3 finalCol;
+            if (norm < 0.4) {
+              finalCol = vec3(norm * 1.5, norm * 1.5, 0.8 - norm);
+            } else {
+              finalCol = vec3(1.0, 1.0 - (norm - 0.4) * 1.5, 0.0);
+            }
 
             gl_FragColor = vec4(finalCol, 1.0);
           }
@@ -227,14 +241,18 @@
 
       function animate() {
         requestAnimationFrame(animate);
-        renderer.render(scene, camera);
+        if (renderer && scene && camera) {
+          renderer.render(scene, camera);
+        }
       }
       animate();
     }
 
     async function startCamera() {
+      const statusMsg = document.getElementById('statusMessage');
       if (!cameraStream) {
         try {
+          statusMsg.innerText = "カメラ接続中...";
           cameraStream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: { ideal: "environment" } },
             audio: false
@@ -242,17 +260,24 @@
           const video = document.getElementById('cameraVideo');
           video.srcObject = cameraStream;
           await video.play();
+          statusMsg.style.display = "none";
         } catch (e) {
-          alert("カメラの起動に失敗しました。ブラウザのカメラ許可を確認してください。");
+          console.error(e);
+          statusMsg.innerText = "カメラのアクセスに失敗しました。\nブラウザの設定でカメラを許可してください。";
         }
+      } else {
+        statusMsg.style.display = "none";
       }
     }
 
     async function launchThermal(id) {
+      // 1. 失敗しても必ず画面を先に切り替える
       const data = thermalData[id];
       document.getElementById('viewTitle').innerText = data.title;
       document.getElementById('analysisText').innerText = data.desc;
+      document.getElementById('viewScreen').classList.remove('hidden-screen');
 
+      // 2. カメラと3D描画の初期化
       await startCamera();
 
       if (!renderer) {
@@ -264,8 +289,6 @@
         material.uniforms.uMidTemp.value = data.mid;
         material.uniforms.uBotTemp.value = data.bot;
       }
-
-      document.getElementById('viewScreen').classList.remove('hidden-screen');
     }
 
     function closeThermal() {
