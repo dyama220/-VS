@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>消防士向け 熱画像判読トレーニング</title>
+<!-- 外部依存は three.min.js のみ（同じフォルダに置く） -->
+<script src="three.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;color:#fff;display:flex;justify-content:center;align-items:center;overflow-x:hidden;-webkit-user-select:none;user-select:none;
+ background:linear-gradient(-45deg,#00f2fe,#00c6ff,#9b51e0,#f355da,#e60067);background-size:400% 400%;animation:shift 12s ease infinite}
+@keyframes shift{0%{background-position:0 50%}50%{background-position:100% 50%}100%{background-position:0 50%}}
+@keyframes pulse{50%{opacity:.5}}
+.pulse{animation:pulse 1.5s ease-in-out infinite}
+button,input{touch-action:manipulation;font-family:inherit}
+button{cursor:pointer;border:0;color:inherit}
+.hidden{display:none!important}
+.app{width:100%;max-width:448px;height:100vh;height:100dvh;position:relative;overflow:hidden;background:rgba(2,6,23,.4);border:1px solid rgba(255,255,255,.2);box-shadow:0 25px 50px rgba(0,0,0,.4)}
+@media(min-width:768px){.app{height:880px;max-height:95vh;border-radius:24px}}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;padding:24px}
+
+/* HOME */
+#homeScreen{justify-content:space-between;z-index:10}
+.head{text-align:center;margin-top:8px}
+.logo{display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:16px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);font-size:32px;margin-bottom:8px}
+h1{font-size:24px;font-weight:900;letter-spacing:.05em;text-shadow:0 2px 4px rgba(0,0,0,.3)}
+.sub{font-size:12px;color:rgba(255,255,255,.8);margin-top:6px}
+.tabs{display:flex;background:rgba(0,0,0,.2);padding:4px;border-radius:12px;border:1px solid rgba(255,255,255,.1);margin:8px 0}
+.tab{flex:1;padding:8px;font-size:12px;font-weight:700;border-radius:8px;background:none;color:rgba(255,255,255,.7)}
+.tab.active{background:rgba(255,255,255,.3);color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+#presetTabContent{flex:1;display:flex;flex-direction:column;justify-content:center;gap:12px;margin:8px 0;overflow-y:auto;padding-right:4px}
+.glass{background:rgba(255,255,255,.18);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.3)}
+.card{border-radius:16px;padding:16px;text-align:left;box-shadow:0 8px 16px rgba(0,0,0,.2);transition:transform .2s;width:100%}
+.card:active{transform:scale(.95)}
+.card .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tag{font-size:11px;font-weight:900;padding:4px 10px;border-radius:99px;border:1px solid}
+.t-cyan{color:#a5f3fc;background:rgba(22,78,99,.5);border-color:rgba(34,211,238,.3)}
+.t-amber{color:#fde68a;background:rgba(120,53,15,.5);border-color:rgba(251,191,36,.3)}
+.t-red{color:#fecaca;background:rgba(127,29,29,.5);border-color:rgba(248,113,113,.3)}
+.t-purple{color:#e9d5ff;background:rgba(88,28,135,.5);border-color:rgba(192,132,252,.3)}
+.lv{font-size:12px;font-weight:700}
+.card h3{font-size:18px;font-weight:800;margin-top:8px}
+.card p{font-size:12px;color:rgba(255,255,255,.8);margin-top:4px}
+#customTabContent{flex:1;flex-direction:column;justify-content:center;gap:16px;margin:8px 0;border-radius:16px;padding:16px;display:flex}
+#customTabContent h3{font-size:14px;font-weight:700}
+.srow{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+.srow b{font-weight:700}.srow span{font-family:ui-monospace,Menlo,monospace;color:#a5f3fc}
+input[type=range]{width:100%;height:8px;cursor:pointer}
+#sliderTop{accent-color:#ef4444}#sliderMid{accent-color:#f59e0b}#sliderBot{accent-color:#10b981}
+.go{width:100%;padding:12px;margin-top:8px;border-radius:12px;font-size:14px;font-weight:800;background:linear-gradient(90deg,#06b6d4,#2563eb);box-shadow:0 4px 10px rgba(0,0,0,.3)}
+.go:active{transform:scale(.95)}
+.note{text-align:center;font-size:10px;color:rgba(255,255,255,.6);padding-top:8px}
+
+/* VIEW */
+#viewScreen{background:#020617;z-index:20;justify-content:flex-start;padding:16px;overflow-y:auto;transform:translateX(100%);transition:transform .3s ease-out}
+#viewScreen.open{transform:translateX(0)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:12px;border-bottom:1px solid #1e293b}
+.sbtn{padding:8px 12px;border-radius:12px;background:rgba(30,41,59,.8);border:1px solid #334155;font-size:12px;font-weight:700;white-space:nowrap}
+.sbtn:active{transform:scale(.95)}
+.mid{text-align:center}
+#viewTitle{font-size:14px;font-weight:800}
+#viewSubtitle{font-size:10px;color:#94a3b8}
+#paletteLabel{font-size:10px;color:#fcd34d}
+.monitor{flex:1;display:flex;flex-direction:column;min-height:380px;margin:12px 0}
+#vrContainer{position:relative;flex:1;min-height:340px;background:#000;border-radius:16px;overflow:hidden;border:2px solid #334155;box-shadow:0 20px 30px rgba(0,0,0,.5)}
+#vrContainer canvas{position:absolute;inset:0;width:100%!important;height:100%!important;display:block}
+#statusMessage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;color:#67e8f9;font-size:12px;font-weight:700;text-align:center;z-index:10;pointer-events:none}
+.hud{position:absolute;top:8px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:center;font:700 11px ui-monospace,Menlo,monospace;color:#fbbf24;z-index:20;pointer-events:none}
+.hud .max{background:rgba(0,0,0,.6);padding:2px 8px;border-radius:4px;border:1px solid rgba(245,158,11,.3)}
+.badges{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:36px 12px 12px;pointer-events:none;z-index:20}
+.bl{display:flex;justify-content:space-between;align-items:center}
+.bl .n{font-size:11px;font-weight:700;background:rgba(0,0,0,.6);padding:4px 10px;border-radius:6px;border:1px solid}
+.bl .v{font:900 14px ui-monospace,Menlo,monospace;background:rgba(0,0,0,.7);padding:2px 8px;border-radius:4px;border:1px solid}
+.b-top .n,.b-top .v{color:#f87171;border-color:rgba(239,68,68,.4)}
+.b-mid .n,.b-mid .v{color:#fbbf24;border-color:rgba(245,158,11,.4)}
+.b-bot .n,.b-bot .v{color:#d1d5db;border-color:rgba(156,163,175,.4)}
+.reticle{position:absolute;inset:0;pointer-events:none;z-index:20}
+.cross{position:absolute;left:50%;top:50%;width:32px;height:32px;transform:translate(-50%,-50%)}
+.cross::before,.cross::after{content:"";position:absolute;background:#fff;box-shadow:0 0 3px #000}
+.cross::before{left:0;right:0;top:50%;height:2px;margin-top:-1px}
+.cross::after{top:0;bottom:0;left:50%;width:2px;margin-left:-1px}
+.ctemp{position:absolute;left:50%;top:calc(50% + 26px);transform:translateX(-50%);background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.4);border-radius:8px;padding:2px 10px;font:900 18px ui-monospace,Menlo,monospace;white-space:nowrap}
+.ctemp small{font:700 10px -apple-system,"Hiragino Sans",sans-serif;color:#fcd34d;margin-left:4px}
+.sensor{margin-top:8px;display:flex;align-items:center;gap:8px}
+.sensor .sbtn{color:#67e8f9;font-size:10px;padding:6px 10px;border-radius:8px}
+.sensor input{flex:1;accent-color:#22d3ee}
+#pitchVal{font:10px ui-monospace,Menlo,monospace;color:#a5f3fc;width:56px;text-align:right}
+#gradientBar{height:16px;border-radius:8px;overflow:hidden;border:1px solid #334155;display:flex;margin-top:8px}
+.scale{display:flex;justify-content:space-between;font:10px ui-monospace,Menlo,monospace;color:#cbd5e1;padding:4px 4px 0}
+.analysis{background:rgba(18,18,24,.85);border:1px solid #1e293b;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.ah{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1e293b;padding-bottom:8px}
+.ah span:first-child{font-size:12px;font-weight:700;color:#22d3ee}
+.risk{font-size:10px;font-weight:900;padding:2px 8px;border-radius:99px;border:1px solid}
+.r-green{background:rgba(6,78,59,.6);color:#6ee7b7;border-color:rgba(16,185,129,.4)}
+.r-amber{background:rgba(120,53,15,.6);color:#fcd34d;border-color:rgba(245,158,11,.4)}
+.r-red{background:rgba(127,29,29,.6);color:#fca5a5;border-color:rgba(239,68,68,.4)}
+.r-purple{background:rgba(88,28,135,.6);color:#d8b4fe;border-color:rgba(168,85,247,.4)}
+.r-blue{background:rgba(30,58,138,.6);color:#93c5fd;border-color:rgba(59,130,246,.4)}
+#analysisText{font-size:12px;line-height:1.7;color:#e2e8f0;font-weight:500}
+.tl{font-size:11px;font-weight:700;color:#fcd34d;display:block;margin:8px 0 4px}
+#tacticsList{font-size:12px;color:#cbd5e1;display:flex;flex-direction:column;gap:4px}
+</style>
+</head>
+<body>
+
+<!-- カメラ入力用の隠しvideo（iOS対策: display:noneにしない） -->
+<video id="cameraVideo" autoplay playsinline webkit-playsinline muted style="position:fixed;left:0;top:0;width:160px;height:120px;opacity:0.01;pointer-events:none;z-index:-1"></video>
+
+<div class="app">
+
+  <!-- ===== HOME ===== -->
+  <div id="homeScreen" class="screen">
+    <div class="head">
+      <div class="logo">🥽</div>
+      <h1>熱画像判読トレーニング</h1>
+      <p class="sub">消防隊員向け サーモグラフィ（TIC）解釈学習</p>
+    </div>
+
+    <div class="tabs">
+      <button id="tabPresetBtn" class="tab active" onclick="switchHomeTab('preset')">Preset Patterns</button>
+      <button id="tabCustomBtn" class="tab" onclick="switchHomeTab('custom')">Custom Thermal</button>
+    </div>
+
+    <div id="presetTabContent">
+      <button class="card glass" onclick="launchThermal(1)">
+        <div class="row"><span class="tag t-cyan">Pattern 01</span><span class="lv" style="color:#6ee7b7">🛡 安定/低危険</span></div>
+        <h3>初期火災（天井熱気流）</h3>
+        <p>上層部のみにわずかな熱蓄積。中層・下層は低温（灰色）を保持。</p>
+      </button>
+      <button class="card glass" onclick="launchThermal(2)">
+        <div class="row"><span class="tag t-amber">Pattern 02</span><span class="lv" style="color:#fcd34d">⚠ 警戒/中危険</span></div>
+        <h3>熱気流降下（中層加熱）</h3>
+        <p>上層が高温化（赤色）。熱気流が中層（黄色）へ降下を始め、活動視界低下。</p>
+      </button>
+      <button class="card glass" onclick="launchThermal(3)">
+        <div class="row"><span class="tag t-red">Pattern 03</span><span class="lv pulse" style="color:#f87171">☢ 極めて危険</span></div>
+        <h3>フラッシュオーバー直前</h3>
+        <p>全層が高温化。上中下層全体が広範に黄色〜鮮烈な赤色に染まる状態。</p>
+      </button>
+      <button class="card glass" onclick="launchThermal(4)">
+        <div class="row"><span class="tag t-purple">Pattern 04</span><span class="lv" style="color:#d8b4fe">☠ バックドラフト徴候</span></div>
+        <h3>燻焼熱気（開口注意）</h3>
+        <p>中上層に未燃焼ガスの著しい高温蓄積（赤〜黄色）。開口による空気流入注意。</p>
+      </button>
+    </div>
+
+    <div id="customTabContent" class="glass hidden">
+      <h3>🎛 各層温度マニュアル設定</h3>
+      <div>
+        <div class="srow"><b style="color:#fca5a5">上層 (天井部):</b><span id="customTopVal">350°C</span></div>
+        <input type="range" id="sliderTop" min="20" max="700" value="350" oninput="updateCustomSliders()">
+      </div>
+      <div>
+        <div class="srow"><b style="color:#fcd34d">中層 (目線部):</b><span id="customMidVal">120°C</span></div>
+        <input type="range" id="sliderMid" min="20" max="700" value="120" oninput="updateCustomSliders()">
+      </div>
+      <div>
+        <div class="srow"><b style="color:#6ee7b7">下層 (床上部):</b><span id="customBotVal">30°C</span></div>
+        <input type="range" id="sliderBot" min="20" max="700" value="30" oninput="updateCustomSliders()">
+      </div>
+      <button class="go" onclick="launchCustomThermal()">▶ カスタムVR画像を描画</button>
+    </div>
+
+    <p class="note">※ 本アプリは消防隊員のサーモグラフィ判読能力向上のためのVRシミュレーターです。</p>
+  </div>
+
+  <!-- ===== THERMAL VIEW ===== -->
+  <div id="viewScreen" class="screen">
+    <div class="bar">
+      <button class="sbtn" onclick="closeThermal()"><span style="color:#22d3ee">←</span> 戻る</button>
+      <div class="mid">
+        <h2 id="viewTitle">Pattern Title</h2>
+        <span id="viewSubtitle">VR Thermal Camera View</span>
+      </div>
+      <button class="sbtn" onclick="togglePalette()">🎨 <span id="paletteLabel">Gray-Yellow-Red</span></button>
+    </div>
+
+    <div class="monitor">
+      <div id="vrContainer">
+        <div id="statusMessage">カメラ接続中...</div>
+        <div class="hud">
+          <span><span class="pulse" style="color:#ef4444">●</span> VR LIVE</span>
+        </div>
+        <div class="reticle">
+          <div class="cross"></div>
+          <div class="ctemp"><span id="centerTemp">--</span>°C <small>模擬値</small></div>
+        </div>
+      </div>
+
+      <div class="sensor">
+        <button id="sensorBtn" class="sbtn" onclick="requestSensor()">📡 VR連動: OFF</button>
+        <input type="range" id="pitchSlider" min="-60" max="60" value="0" oninput="manualPitch(this.value)">
+        <span id="pitchVal">視線 0°</span>
+      </div>
+
+      <div id="gradientBar"></div>
+      <div class="scale"><span>低温 (20°C)</span><span>中温 (250°C)</span><span>高温 (600°C+)</span></div>
+    </div>
+
+    <div class="analysis">
+      <div class="ah"><span>🔍 熱画像判読解析結果</span><span id="riskBadge" class="risk r-red">DANGER</span></div>
+      <p id="analysisText">解析テキスト</p>
+      <div><span class="tl">【推奨戦術行動】</span><div id="tacticsList"></div></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const thermalPatterns = {
+  1: { title:"パターン 01：初期火災", subtitle:"天井熱気流の蓄積初期", topTemp:220, midTemp:45, botTemp:22,
+    riskLevel:"LOW RISK", riskClass:"r-green",
+    analysis:"天井付近（上層）に黄色〜薄い赤色の熱気流が滞留し始めていますが、中層および下層は正常温度（灰色）を保っています。",
+    tactics:["✔ 視界良好：低い姿勢（灰色領域）を保持して迅速な進入・捜索が可能","✔ 熱流源（火元）に向けたピンポイント注水を実施","✔ 排煙口の確保により上層の熱流を安全に排出"] },
+  2: { title:"パターン 02：熱気流降下", subtitle:"中層加熱・中度危険状態", topTemp:480, midTemp:240, botTemp:50,
+    riskLevel:"WARNING", riskClass:"r-amber",
+    analysis:"上層部が著しく高温化（赤色）。中層（目線付近）まで熱気流が降下して黄色へ変化し、熱放射が及んでいます。",
+    tactics:["⚠ 低い姿勢の徹底（姿勢を上げると過熱損傷のリスク）","✔ 天井・上層領域（赤色領域）への短い冷却断続注水","✔ 開口部・給気と排煙のバランスを制御"] },
+  3: { title:"パターン 03：フラッシュオーバー直前", subtitle:"全層過熱・極めて危険", topTemp:660, midTemp:510, botTemp:280,
+    riskLevel:"CRITICAL DANGER", riskClass:"r-red pulse",
+    analysis:"上層・中層が強烈な赤色、下層まで黄色〜赤色化。室内全体で熱階層の自然なグラデーションが超高温域に達しており、フラッシュオーバーが切迫しています。",
+    tactics:["🚨 警報：直ちに水幕形成および広角注水で熱量を遮断","🚨 フラッシュオーバー切迫。即時冷却が困難な場合は直ちに退避","✖ 無計画な開放厳禁"] },
+  4: { title:"パターン 04：燻焼熱気蓄積", subtitle:"バックドラフト前兆警戒", topTemp:540, midTemp:320, botTemp:85,
+    riskLevel:"BACKDRAFT RISK", riskClass:"r-purple",
+    analysis:"密閉空間内で不完全燃焼ガスが高温（赤色〜濃い黄色）のまま上・中層へ濃縮蓄積されています。",
+    tactics:["⚠️ 開口（扉開閉）の瞬間に爆発的燃焼のリスク","✔ 扉開口前の「間口上部への冷却注水」","✔ 高所からの垂直排煙を最優先"] }
+};
+
+let currentData = thermalPatterns[1];
+let cameraStream = null;
+let scene, camera, renderer, videoTexture, thermalMaterial, screenMesh;
+let paletteMode = 0;
+let targetPitch = 0, currentPitch = 0, sensorOn = false;
+const $ = id => document.getElementById(id);
+
+function showStatus(msg){ const e=$('statusMessage'); e.innerText=msg; e.style.display="flex"; }
+function hideStatus(){ $('statusMessage').style.display="none"; }
+
+function updatePitchUI(){
+  const r = Math.round(currentPitch);
+  $('pitchSlider').value = Math.max(-60, Math.min(60, r));
+  $('pitchVal').innerText = "視線 " + (r > 0 ? "+" : "") + r + "°";
+}
+function setSensorUI(on){ sensorOn = on; $('sensorBtn').innerText = "📡 VR連動: " + (on ? "ON" : "OFF"); }
+
+// beta: 縦持ちで90°。上を向くと90°より大きく、下を向くと小さい
+function onOrient(e){
+  if (e.beta == null) return;
+  targetPitch = Math.max(-90, Math.min(90, e.beta - 90));
+  if (!sensorOn) setSensorUI(true);
+}
+// iOSはユーザー操作内での許可リクエストが必須
+async function requestSensor(){
+  try {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const r = await DeviceOrientationEvent.requestPermission();
+      if (r !== 'granted') { setSensorUI(false); return; }
+    }
+    window.removeEventListener('deviceorientation', onOrient);
+    window.addEventListener('deviceorientation', onOrient);
+  } catch (err) { console.error(err); setSensorUI(false); }
+}
+function stopSensor(){ window.removeEventListener('deviceorientation', onOrient); setSensorUI(false); }
+function manualPitch(v){ stopSensor(); targetPitch = currentPitch = parseFloat(v); updatePitchUI(); }
+
+function initThreeVR(){
+  if (renderer) { resizeVR(); return true; }
+  if (typeof THREE === 'undefined') { showStatus("three.min.js が見つかりません。index.html と同じ場所に置いてください。"); return false; }
+  try {
+    const c = $('vrContainer');
+    const w = c.clientWidth || 320, h = c.clientHeight || 380;
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(70, w / h, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(w, h);
+    c.insertBefore(renderer.domElement, c.firstChild);
+
+    videoTexture = new THREE.VideoTexture($('cameraVideo'));
+    videoTexture.minFilter = THREE.LinearFilter;
+    videoTexture.magFilter = THREE.LinearFilter;
+
+    thermalMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        tDiffuse: { value: videoTexture },
+        uTopTemp: { value: currentData.topTemp },
+        uMidTemp: { value: currentData.midTemp },
+        uBotTemp: { value: currentData.botTemp },
+        uPaletteMode: { value: 0 },
+        uPitch: { value: 0 },
+        uVFov: { value: 70 * Math.PI / 180 },
+        uRange: { value: 50 * Math.PI / 180 }
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+      fragmentShader: `
+        precision mediump float;
+        uniform sampler2D tDiffuse;
+        uniform float uTopTemp;
+        uniform float uMidTemp;
+        uniform float uBotTemp;
+        uniform int uPaletteMode;
+        uniform float uPitch;
+        uniform float uVFov;
+        uniform float uRange;
+        varying vec2 vUv;
+
+        vec3 tempToColor(float temp) {
+          float norm = clamp((temp - 20.0) / 630.0, 0.0, 1.0);
+          if (uPaletteMode == 0) {
+            if (norm < 0.4) {
+              float t = norm / 0.4;
+              return vec3((110.0 + t * 145.0)/255.0, (110.0 + t * 110.0)/255.0, (110.0 * (1.0 - t))/255.0);
+            } else {
+              float t = (norm - 0.4) / 0.6;
+              return vec3((255.0 - t * 25.0)/255.0, (220.0 * (1.0 - t))/255.0, 0.0);
+            }
+          } else if (uPaletteMode == 1) {
+            return vec3(norm, norm * 0.5, 1.0 - norm);
+          } else {
+            return vec3(norm);
+          }
+        }
+
+        void main() {
+          vec4 color = texture2D(tDiffuse, vUv);
+          float luma = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+
+          // 画素ごとの実世界の仰角 = 端末の仰角 + 画面内の位置
+          float elev = uPitch + (vUv.y - 0.5) * uVFov;
+          float h = clamp(elev / uRange, -1.0, 1.0); // -1:床 0:目線 +1:天井
+          float baseTemp;
+          if (h >= 0.0) {
+            baseTemp = mix(uMidTemp, uTopTemp, smoothstep(0.0, 1.0, h));
+          } else {
+            baseTemp = mix(uMidTemp, uBotTemp, smoothstep(0.0, 1.0, -h));
+          }
+
+          float pixelTemp = max(15.0, baseTemp * (0.5 + luma * 1.0) + luma * 60.0);
+          gl_FragColor = vec4(tempToColor(pixelTemp), 1.0);
+        }`,
+      side: THREE.DoubleSide
+    });
+
+    screenMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), thermalMaterial);
+    screenMesh.position.set(0, 0, -2);
+    scene.add(screenMesh);
+    resizeVR();
+
+    (function animate(){
+      requestAnimationFrame(animate);
+      currentPitch += (targetPitch - currentPitch) * 0.2;
+      thermalMaterial.uniforms.uPitch.value = currentPitch * Math.PI / 180;
+      updateCenterTemp();
+      if (sensorOn) updatePitchUI();
+      renderer.render(scene, camera);
+    })();
+    return true;
+  } catch (e) {
+    console.error(e);
+    showStatus("WebGLの初期化に失敗しました。");
+    renderer = null;
+    return false;
+  }
+}
+
+// 画面中央の模擬温度（シェーダーの高さ補間と同じ式。範囲は uRange を共用）
+function updateCenterTemp(){
+  const u = thermalMaterial.uniforms;
+  const h = Math.max(-1, Math.min(1, (currentPitch * Math.PI / 180) / u.uRange.value));
+  const k = Math.abs(h), sm = k * k * (3 - 2 * k);
+  const to = h >= 0 ? u.uTopTemp.value : u.uBotTemp.value;
+  const t = u.uMidTemp.value + (to - u.uMidTemp.value) * sm;
+  $('centerTemp').textContent = Math.round(t);
+}
+
+function resizeVR(){
+  if (!renderer) return;
+  const c = $('vrContainer'), w = c.clientWidth, h = c.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  const visH = 2 * 2 * Math.tan((camera.fov * Math.PI / 180) / 2);
+  screenMesh.scale.set(visH * camera.aspect, visH, 1);
+}
+window.addEventListener('resize', resizeVR);
+
+async function startCamera(){
+  if (cameraStream) { hideStatus(); return true; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showStatus("この環境ではカメラを使用できません（HTTPS接続が必要です）。");
+    return false;
+  }
+  try {
+    showStatus("カメラ接続中...");
+    cameraStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:"environment" } }, audio:false });
+    const v = $('cameraVideo');
+    v.srcObject = cameraStream;
+    await v.play();
+    hideStatus();
+    setTimeout(() => { if (!v.videoWidth) showStatus("カメラ映像のフレームが取得できません。ブラウザを再読み込みして再度お試しください。"); }, 1500);
+    return true;
+  } catch (err) {
+    console.error(err);
+    showStatus("カメラのアクセスに失敗しました。ブラウザの設定でカメラを許可してください。");
+    return false;
+  }
+}
+function stopCamera(){
+  if (cameraStream) { cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+}
+
+function updateUniforms(){
+  if (!thermalMaterial) return;
+  const u = thermalMaterial.uniforms;
+  u.uTopTemp.value = currentData.topTemp;
+  u.uMidTemp.value = currentData.midTemp;
+  u.uBotTemp.value = currentData.botTemp;
+  u.uPaletteMode.value = paletteMode;
+}
+
+function openViewScreen(){
+  requestSensor(); // タップ直後に呼ぶ（iOS対策）
+  updateViewUI();
+  $('viewScreen').classList.add('open');
+  setTimeout(() => { initThreeVR(); updateUniforms(); startCamera(); }, 350);
+}
+function launchThermal(id){ currentData = thermalPatterns[id]; openViewScreen(); }
+function launchCustomThermal(){
+  const top = parseInt($('sliderTop').value), mid = parseInt($('sliderMid').value), bot = parseInt($('sliderBot').value);
+  currentData = {
+    title:"カスタム設定パターン", subtitle:"手動設定温度分布",
+    topTemp:top, midTemp:mid, botTemp:bot,
+    riskLevel: top > 500 ? "HIGH RISK" : "CUSTOM MODE",
+    riskClass: top > 500 ? "r-red" : "r-blue",
+    analysis:"ユーザー定義の温度分布です。自然に変化する熱階層のグラデーション（灰色→黄色→赤色）を観察してください。",
+    tactics:["・上層（赤色）と中層（黄色）の境目の降下速度に注意"]
+  };
+  openViewScreen();
+}
+function closeThermal(){
+  $('viewScreen').classList.remove('open');
+  stopCamera();
+  stopSensor();
+}
+
+function togglePalette(){
+  paletteMode = (paletteMode + 1) % 3;
+  $('paletteLabel').innerText = ["Gray-Yellow-Red","Ironbow","Grayscale"][paletteMode];
+  updateUniforms();
+  renderGradientLegendBar();
+}
+
+function switchHomeTab(tab){
+  const p = tab === 'preset';
+  $('tabPresetBtn').classList.toggle('active', p);
+  $('tabCustomBtn').classList.toggle('active', !p);
+  $('presetTabContent').classList.toggle('hidden', !p);
+  $('customTabContent').classList.toggle('hidden', p);
+}
+function updateCustomSliders(){
+  $('customTopVal').innerText = $('sliderTop').value + "°C";
+  $('customMidVal').innerText = $('sliderMid').value + "°C";
+  $('customBotVal').innerText = $('sliderBot').value + "°C";
+}
+
+function updateViewUI(){
+  $('viewTitle').innerText = currentData.title;
+  $('viewSubtitle').innerText = currentData.subtitle;
+  const rb = $('riskBadge');
+  rb.innerText = currentData.riskLevel;
+  rb.className = "risk " + currentData.riskClass;
+  $('analysisText').innerText = currentData.analysis;
+  $('tacticsList').innerHTML = currentData.tactics.map(t => `<p>${t}</p>`).join('');
+  renderGradientLegendBar();
+}
+
+function renderGradientLegendBar(){
+  const bar = $('gradientBar');
+  bar.innerHTML = '';
+  const steps = 30;
+  for (let i = 0; i < steps; i++) {
+    const d = document.createElement('div');
+    d.style.flex = "1";
+    const n = i / steps;
+    let r, g, b;
+    if (paletteMode === 0) {
+      if (n < 0.4) { const t = n / 0.4; r = 110 + t*145; g = 110 + t*110; b = 110*(1-t); }
+      else { const t = (n - 0.4) / 0.6; r = 255 - t*25; g = 220*(1-t); b = 0; }
+    } else if (paletteMode === 1) { r = n*255; g = n*128; b = (1-n)*255; }
+    else { r = g = b = n*255; }
+    d.style.backgroundColor = `rgb(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)})`;
+    bar.appendChild(d);
+  }
+}
+
+window.onload = renderGradientLegendBar;
+</script>
+</body>
+</html>
