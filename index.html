@@ -252,7 +252,7 @@ let targetPitch = 0, currentPitch = 0, sensorOn = false;
 const $ = id => document.getElementById(id);
 
 // ===== 訓練モード（コントローラーからの温度を反映） =====
-const GAS_URL = ""; // ← GASをデプロイして発行されたURLを貼る
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxMkPE4fmdnO68VWBJiraZ_IXQc5AaUpp564sUt2xedA4GIYPnutbjquIxlnwlh-aBwug/exec"; // ← GASをデプロイして発行されたURLを貼る
 let trainingOn = false, trainTimer = null, lastStamp = 0, remoteTemps = null;
 
 function setTrainStatus(t){ $('trainStatus').innerText = t; }
