@@ -59,6 +59,10 @@ input[type=range]{width:100%;height:8px;cursor:pointer}
 .switch.on{opacity:1;animation:trainShift 3s ease-in-out infinite;box-shadow:0 0 14px rgba(236,72,153,.7)}
 .switch.on .knob{transform:translateX(26px)}
 @keyframes trainShift{0%{background-position:0 50%}50%{background-position:100% 50%}100%{background-position:0 50%}}
+/* Custom Thermalタブ：内容が画面に収まらないときにスクロールできるようにする（収まるときは従来どおり中央寄せ） */
+#customTabContent{min-height:0;overflow-y:auto;justify-content:flex-start;-webkit-overflow-scrolling:touch}
+#customTabContent>:first-child{margin-top:auto}
+#customTabContent>:last-child{margin-bottom:auto}
 .note{text-align:center;font-size:10px;color:rgba(255,255,255,.6);padding-top:8px}
 
 /* VIEW */
