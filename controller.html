@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="robots" content="noindex,nofollow">
+<title>熱画像判読トレーニング コントローラー</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;color:#fff;display:flex;justify-content:center;align-items:center;overflow-x:hidden;-webkit-user-select:none;user-select:none;
+ background:linear-gradient(-45deg,#00f2fe,#00c6ff,#9b51e0,#f355da,#e60067);background-size:400% 400%;animation:shift 12s ease infinite}
+@keyframes shift{0%{background-position:0 50%}50%{background-position:100% 50%}100%{background-position:0 50%}}
+button,input{touch-action:manipulation;font-family:inherit}
+button{cursor:pointer;border:0;color:inherit}
+.app{width:100%;max-width:448px;min-height:100vh;min-height:100dvh;padding:24px;display:flex;flex-direction:column;gap:16px;background:rgba(2,6,23,.4);border:1px solid rgba(255,255,255,.2);overflow-y:auto}
+@media(min-width:768px){.app{min-height:0;max-height:95vh;border-radius:24px;box-shadow:0 25px 50px rgba(0,0,0,.4)}}
+.head{text-align:center}
+h1{font-size:22px;font-weight:900;letter-spacing:.05em;text-shadow:0 2px 4px rgba(0,0,0,.3)}
+.sub{font-size:12px;color:rgba(255,255,255,.8);margin-top:6px}
+.glass{background:rgba(255,255,255,.18);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.3);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.glass h3{font-size:14px;font-weight:700}
+.srow{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+.srow b{font-weight:700}.srow span{font-family:ui-monospace,Menlo,monospace;color:#a5f3fc}
+input[type=range]{width:100%;height:8px;cursor:pointer}
+#sTop{accent-color:#ef4444}#sMid{accent-color:#f59e0b}#sBot{accent-color:#10b981}
+input[type=password]{width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.35);color:#fff;font-size:14px;-webkit-user-select:text;user-select:text}
+.presets{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pbtn{padding:10px 8px;border-radius:12px;font-size:12px;font-weight:700;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3)}
+.pbtn:active,.go:active{transform:scale(.95)}
+.go{width:100%;padding:12px;border-radius:12px;font-size:14px;font-weight:800;background:linear-gradient(90deg,#8b5cf6,#ec4899);box-shadow:0 4px 10px rgba(0,0,0,.3)}
+#status{text-align:center;font-size:12px;min-height:18px;color:#fde68a}
+.note{text-align:center;font-size:10px;color:rgba(255,255,255,.6)}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="head">
+    <h1>コントローラー</h1>
+    <p class="sub">熱画像判読トレーニング 温度設定</p>
+  </div>
+
+  <div class="glass">
+    <h3>🔑 合言葉</h3>
+    <input type="password" id="pass" placeholder="合言葉を入力（保存されません）" autocomplete="off">
+  </div>
+
+  <div class="glass">
+    <h3>🎛 各層の温度（動かすと自動で送信）</h3>
+    <div>
+      <div class="srow"><b style="color:#fca5a5">上層 (天井部):</b><span id="vTop">350°C</span></div>
+      <input type="range" id="sTop" min="20" max="700" value="350">
+    </div>
+    <div>
+      <div class="srow"><b style="color:#fcd34d">中層 (目線部):</b><span id="vMid">120°C</span></div>
+      <input type="range" id="sMid" min="20" max="700" value="120">
+    </div>
+    <div>
+      <div class="srow"><b style="color:#6ee7b7">下層 (床上部):</b><span id="vBot">30°C</span></div>
+      <input type="range" id="sBot" min="20" max="700" value="30">
+    </div>
+    <button class="go" onclick="sendNow()">▶ 今すぐ送信</button>
+  </div>
+
+  <div class="glass">
+    <h3>⚡ プリセット</h3>
+    <div class="presets">
+      <button class="pbtn" onclick="preset(220,45,22)">01 初期火災</button>
+      <button class="pbtn" onclick="preset(480,240,50)">02 熱気流降下</button>
+      <button class="pbtn" onclick="preset(660,510,280)">03 フラッシュオーバー直前</button>
+      <button class="pbtn" onclick="preset(540,320,85)">04 燻焼熱気</button>
+    </div>
+  </div>
+
+  <div id="status"></div>
+  <p class="note">※ 送信するのは温度の数値と合言葉のみです。訓練用の模擬値です。</p>
+</div>
+
+<script>
+const GAS_URL = ""; // ← GASをデプロイして発行されたURLを貼る（index.htmlと同じもの）
+const $ = id => document.getElementById(id);
+let timer = null;
+
+function readVals(){
+  return { top: +$('sTop').value, mid: +$('sMid').value, bot: +$('sBot').value };
+}
+function showVals(){
+  const v = readVals();
+  $('vTop').innerText = v.top + "°C";
+  $('vMid').innerText = v.mid + "°C";
+  $('vBot').innerText = v.bot + "°C";
+}
+function setStatus(t){ $('status').innerText = t; }
+
+async function send(){
+  if (!GAS_URL) { setStatus("GAS_URLが未設定です"); return; }
+  const pass = $('pass').value;
+  if (!pass) { setStatus("合言葉を入力してください"); return; }
+  setStatus("送信中...");
+  try {
+    // text/plain にすると事前確認（preflight）が不要になり、GASで受け取れる
+    const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ pass, ...readVals() }) });
+    const d = await r.json();
+    if (d.ok) setStatus("✔ 送信しました " + new Date().toLocaleTimeString("ja-JP"));
+    else if (d.error === "auth") setStatus("✖ 合言葉が違います");
+    else setStatus("✖ 送信に失敗しました（" + d.error + "）");
+  } catch (e) {
+    console.error(e);
+    setStatus("✖ 通信エラー。電波とGAS_URLを確認してください");
+  }
+}
+function sendNow(){ clearTimeout(timer); send(); }
+function queueSend(){ showVals(); clearTimeout(timer); timer = setTimeout(send, 300); }
+
+function preset(t, m, b){
+  $('sTop').value = t; $('sMid').value = m; $('sBot').value = b;
+  showVals(); sendNow();
+}
+['sTop','sMid','sBot'].forEach(id => $(id).addEventListener('input', queueSend));
+showVals();
+</script>
+</body>
+</html>
