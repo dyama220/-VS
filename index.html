@@ -51,6 +51,14 @@ input[type=range]{width:100%;height:8px;cursor:pointer}
 #sliderTop{accent-color:#ef4444}#sliderMid{accent-color:#f59e0b}#sliderBot{accent-color:#10b981}
 .go{width:100%;padding:12px;margin-top:8px;border-radius:12px;font-size:14px;font-weight:800;background:linear-gradient(90deg,#06b6d4,#2563eb);box-shadow:0 4px 10px rgba(0,0,0,.3)}
 .go:active{transform:scale(.95)}
+.train{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:4px}
+.train b{font-size:14px;font-weight:700;display:block}
+#trainStatus{font-size:10px;color:rgba(255,255,255,.7)}
+.switch{position:relative;width:56px;height:30px;border-radius:99px;flex:none;background:linear-gradient(90deg,#8b5cf6,#ec4899);background-size:300% 100%;opacity:.45;transition:opacity .3s,box-shadow .3s}
+.switch .knob{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.4);transition:transform .3s}
+.switch.on{opacity:1;animation:trainShift 3s ease-in-out infinite;box-shadow:0 0 14px rgba(236,72,153,.7)}
+.switch.on .knob{transform:translateX(26px)}
+@keyframes trainShift{0%{background-position:0 50%}50%{background-position:100% 50%}100%{background-position:0 50%}}
 .note{text-align:center;font-size:10px;color:rgba(255,255,255,.6);padding-top:8px}
 
 /* VIEW */
@@ -76,6 +84,13 @@ input[type=range]{width:100%;height:8px;cursor:pointer}
 .b-top .n,.b-top .v{color:#f87171;border-color:rgba(239,68,68,.4)}
 .b-mid .n,.b-mid .v{color:#fbbf24;border-color:rgba(245,158,11,.4)}
 .b-bot .n,.b-bot .v{color:#d1d5db;border-color:rgba(156,163,175,.4)}
+.reticle{position:absolute;inset:0;pointer-events:none;z-index:20}
+.cross{position:absolute;left:50%;top:50%;width:32px;height:32px;transform:translate(-50%,-50%)}
+.cross::before,.cross::after{content:"";position:absolute;background:#fff;box-shadow:0 0 3px #000}
+.cross::before{left:0;right:0;top:50%;height:2px;margin-top:-1px}
+.cross::after{top:0;bottom:0;left:50%;width:2px;margin-left:-1px}
+.ctemp{position:absolute;left:50%;top:calc(50% + 26px);transform:translateX(-50%);background:rgba(0,0,0,.7);border:1px solid rgba(255,255,255,.4);border-radius:8px;padding:2px 10px;font:900 18px ui-monospace,Menlo,monospace;white-space:nowrap}
+.ctemp small{font:700 10px -apple-system,"Hiragino Sans",sans-serif;color:#fcd34d;margin-left:4px}
 .sensor{margin-top:8px;display:flex;align-items:center;gap:8px}
 .sensor .sbtn{color:#67e8f9;font-size:10px;padding:6px 10px;border-radius:8px}
 .sensor input{flex:1;accent-color:#22d3ee}
@@ -154,6 +169,10 @@ input[type=range]{width:100%;height:8px;cursor:pointer}
         <input type="range" id="sliderBot" min="20" max="700" value="30" oninput="updateCustomSliders()">
       </div>
       <button class="go" onclick="launchCustomThermal()">▶ カスタムVR画像を描画</button>
+      <div class="train">
+        <div><b>訓練モード</b><span id="trainStatus">OFF</span></div>
+        <button id="trainSwitch" class="switch" role="switch" aria-checked="false" aria-label="訓練モード" onclick="toggleTraining()"><span class="knob"></span></button>
+      </div>
     </div>
 
     <p class="note">※ 本アプリは消防隊員のサーモグラフィ判読能力向上のためのVRシミュレーターです。</p>
@@ -175,12 +194,10 @@ input[type=range]{width:100%;height:8px;cursor:pointer}
         <div id="statusMessage">カメラ接続中...</div>
         <div class="hud">
           <span><span class="pulse" style="color:#ef4444">●</span> VR LIVE</span>
-          <span id="hudMaxTemp" class="max">MAX: ---°C</span>
         </div>
-        <div class="badges">
-          <div class="bl b-top"><span class="n">上層 (天井)</span><span id="badgeTopTemp" class="v">--°C</span></div>
-          <div class="bl b-mid"><span class="n">中層 (目線)</span><span id="badgeMidTemp" class="v">--°C</span></div>
-          <div class="bl b-bot"><span class="n">下層 (床上)</span><span id="badgeBotTemp" class="v">--°C</span></div>
+        <div class="reticle">
+          <div class="cross"></div>
+          <div class="ctemp"><span id="centerTemp">--</span>°C <small>模擬値</small></div>
         </div>
       </div>
 
@@ -229,6 +246,54 @@ let scene, camera, renderer, videoTexture, thermalMaterial, screenMesh;
 let paletteMode = 0;
 let targetPitch = 0, currentPitch = 0, sensorOn = false;
 const $ = id => document.getElementById(id);
+
+// ===== 訓練モード（コントローラーからの温度を反映） =====
+const GAS_URL = ""; // ← GASをデプロイして発行されたURLを貼る
+let trainingOn = false, trainTimer = null, lastStamp = 0, remoteTemps = null;
+
+function setTrainStatus(t){ $('trainStatus').innerText = t; }
+
+function applyRemote(){
+  if (!remoteTemps) return;
+  currentData = Object.assign({}, currentData, remoteTemps);
+  if ($('viewScreen').classList.contains('open')) updateUniforms();
+}
+
+async function pollTraining(){
+  if (!trainingOn) return;
+  try {
+    const r = await fetch(GAS_URL + "?t=" + Date.now(), { cache: "no-store" });
+    const d = await r.json();
+    if (d && d.updated && d.updated !== lastStamp) {
+      lastStamp = d.updated;
+      remoteTemps = { topTemp: d.top, midTemp: d.mid, botTemp: d.bot };
+      applyRemote();
+    }
+    setTrainStatus(remoteTemps ? "接続中" : "接続中（設定待ち）");
+  } catch (e) {
+    console.error(e);
+    setTrainStatus("通信エラー（直前の値で継続）");
+  }
+  if (trainingOn) trainTimer = setTimeout(pollTraining, 2000);
+}
+
+function toggleTraining(){
+  const sw = $('trainSwitch');
+  if (!trainingOn) {
+    if (!GAS_URL) { setTrainStatus("GAS_URLが未設定です"); return; }
+    trainingOn = true;
+    sw.classList.add('on');
+    sw.setAttribute('aria-checked', 'true');
+    setTrainStatus("接続中...");
+    pollTraining();
+  } else {
+    trainingOn = false;
+    clearTimeout(trainTimer);
+    sw.classList.remove('on');
+    sw.setAttribute('aria-checked', 'false');
+    setTrainStatus("OFF");
+  }
+}
 
 function showStatus(msg){ const e=$('statusMessage'); e.innerText=msg; e.style.display="flex"; }
 function hideStatus(){ $('statusMessage').style.display="none"; }
@@ -306,16 +371,22 @@ function initThreeVR(){
         uniform float uRange;
         varying vec2 vUv;
 
+        vec3 palette0(float t) {
+          vec3 c0 = vec3(110.0, 110.0, 110.0) / 255.0; //   0°C 灰色
+          vec3 c1 = vec3(225.0, 225.0, 225.0) / 255.0; // 100°C 白に近い灰色
+          vec3 c2 = vec3(255.0, 220.0, 0.0) / 255.0;   // 150°C 黄色
+          vec3 c3 = vec3(255.0, 140.0, 0.0) / 255.0;   // 300°C オレンジ
+          vec3 c4 = vec3(230.0, 0.0, 0.0) / 255.0;     // 500°C 赤
+          if (t < 100.0) return mix(c0, c1, clamp(t / 100.0, 0.0, 1.0));
+          if (t < 150.0) return mix(c1, c2, (t - 100.0) / 50.0);
+          if (t < 300.0) return mix(c2, c3, (t - 150.0) / 150.0);
+          return mix(c3, c4, clamp((t - 300.0) / 200.0, 0.0, 1.0));
+        }
+
         vec3 tempToColor(float temp) {
           float norm = clamp((temp - 20.0) / 630.0, 0.0, 1.0);
           if (uPaletteMode == 0) {
-            if (norm < 0.4) {
-              float t = norm / 0.4;
-              return vec3((110.0 + t * 145.0)/255.0, (110.0 + t * 110.0)/255.0, (110.0 * (1.0 - t))/255.0);
-            } else {
-              float t = (norm - 0.4) / 0.6;
-              return vec3((255.0 - t * 25.0)/255.0, (220.0 * (1.0 - t))/255.0, 0.0);
-            }
+            return palette0(temp);
           } else if (uPaletteMode == 1) {
             return vec3(norm, norm * 0.5, 1.0 - norm);
           } else {
@@ -352,6 +423,7 @@ function initThreeVR(){
       requestAnimationFrame(animate);
       currentPitch += (targetPitch - currentPitch) * 0.2;
       thermalMaterial.uniforms.uPitch.value = currentPitch * Math.PI / 180;
+      updateCenterTemp();
       if (sensorOn) updatePitchUI();
       renderer.render(scene, camera);
     })();
@@ -362,6 +434,16 @@ function initThreeVR(){
     renderer = null;
     return false;
   }
+}
+
+// 画面中央の模擬温度（シェーダーの高さ補間と同じ式。範囲は uRange を共用）
+function updateCenterTemp(){
+  const u = thermalMaterial.uniforms;
+  const h = Math.max(-1, Math.min(1, (currentPitch * Math.PI / 180) / u.uRange.value));
+  const k = Math.abs(h), sm = k * k * (3 - 2 * k);
+  const to = h >= 0 ? u.uTopTemp.value : u.uBotTemp.value;
+  const t = u.uMidTemp.value + (to - u.uMidTemp.value) * sm;
+  $('centerTemp').textContent = Math.round(t);
 }
 
 function resizeVR(){
@@ -412,6 +494,7 @@ function updateUniforms(){
 
 function openViewScreen(){
   requestSensor(); // タップ直後に呼ぶ（iOS対策）
+  if (trainingOn && remoteTemps) currentData = Object.assign({}, currentData, remoteTemps);
   updateViewUI();
   $('viewScreen').classList.add('open');
   setTimeout(() => { initThreeVR(); updateUniforms(); startCamera(); }, 350);
@@ -458,16 +541,25 @@ function updateCustomSliders(){
 function updateViewUI(){
   $('viewTitle').innerText = currentData.title;
   $('viewSubtitle').innerText = currentData.subtitle;
-  $('badgeTopTemp').innerText = currentData.topTemp + "°C";
-  $('badgeMidTemp').innerText = currentData.midTemp + "°C";
-  $('badgeBotTemp').innerText = currentData.botTemp + "°C";
-  $('hudMaxTemp').innerText = "MAX: " + Math.max(currentData.topTemp, currentData.midTemp, currentData.botTemp) + "°C";
   const rb = $('riskBadge');
   rb.innerText = currentData.riskLevel;
   rb.className = "risk " + currentData.riskClass;
   $('analysisText').innerText = currentData.analysis;
   $('tacticsList').innerHTML = currentData.tactics.map(t => `<p>${t}</p>`).join('');
   renderGradientLegendBar();
+}
+
+// パレット0の色の基準点（シェーダーの palette0 と同じ値）
+function palette0JS(t){
+  const S = [[0,[110,110,110]],[100,[225,225,225]],[150,[255,220,0]],[300,[255,140,0]],[500,[230,0,0]]];
+  if (t <= S[0][0]) return S[0][1];
+  for (let i = 1; i < S.length; i++) {
+    if (t <= S[i][0]) {
+      const [t0, c0] = S[i-1], [t1, c1] = S[i], k = (t - t0) / (t1 - t0);
+      return c0.map((v, j) => v + (c1[j] - v) * k);
+    }
+  }
+  return S[S.length-1][1];
 }
 
 function renderGradientLegendBar(){
@@ -480,8 +572,7 @@ function renderGradientLegendBar(){
     const n = i / steps;
     let r, g, b;
     if (paletteMode === 0) {
-      if (n < 0.4) { const t = n / 0.4; r = 110 + t*145; g = 110 + t*110; b = 110*(1-t); }
-      else { const t = (n - 0.4) / 0.6; r = 255 - t*25; g = 220*(1-t); b = 0; }
+      [r, g, b] = palette0JS(20 + n * 630);
     } else if (paletteMode === 1) { r = n*255; g = n*128; b = (1-n)*255; }
     else { r = g = b = n*255; }
     d.style.backgroundColor = `rgb(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)})`;
